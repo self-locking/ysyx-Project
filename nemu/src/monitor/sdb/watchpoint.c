@@ -14,19 +14,15 @@
 ***************************************************************************************/
 
 #include "sdb.h"
+#include <debug.h>
+#include <monitor/watchpoint.h>
 
 #define NR_WP 32
 
-typedef struct watchpoint {
-  int NO;
-  struct watchpoint *next;
+/* 结构体定义放头文件了 */
 
-  /* TODO: Add more members if necessary */
-
-} WP;
-
-static WP wp_pool[NR_WP] = {};
-static WP *head = NULL, *free_ = NULL;
+WP wp_pool[NR_WP] = {};
+WP *head = NULL, *free_ = NULL;
 
 void init_wp_pool() {
   int i;
@@ -40,4 +36,54 @@ void init_wp_pool() {
 }
 
 /* TODO: Implement the functionality of watchpoint */
+WP* new_wp() {
+  if (free_ == NULL) {
+    printf("No free watchpoint available.\n");
+    assert(0);
+  }
 
+  WP* wp = free_;
+  free_ = free_->next;
+  wp->next = head;
+  head = wp;
+  return wp;
+}
+
+void free_wp_no(int NO) {
+  WP *cur = head;
+  /* 检测是否合法 */
+  while (cur != NULL && cur->NO != NO) {
+    cur = cur->next;
+  }
+  if (cur == NULL) {
+    printf("Invalid watchpoint number.\n");
+    assert(0);
+  }
+  free_wp(cur);
+}
+
+void free_wp(WP *wp) {
+  if (wp == NULL) {
+    printf("Invalid watchpoint.\n");
+    assert(0);
+  }
+
+  if (head == wp) {
+    head = wp->next;
+    wp->next = free_;
+    free_ = wp;
+  }
+  else {
+    WP* cur = head;
+    while (cur->next != wp) {
+      if (cur->next == NULL) {
+        printf("Can't find the watchpoint\n");
+        assert(0);
+      }
+      cur = cur->next;
+    }
+    cur->next = wp->next;
+    wp->next = free_;
+    free_ = wp;
+  }
+}

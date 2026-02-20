@@ -19,9 +19,15 @@
  * Type 'man regex' for more information about POSIX regex functions.
  */
 #include <regex.h>
+#include <memory/vaddr.h>
+#include <debug.h>
+#include <stdlib.h>
 
 enum {
   TK_NOTYPE = 256, TK_EQ,
+  TK_DEC, TK_HEX, TK_REG,
+  TK_NOT_EQ, TK_AND, TK_OR,
+  TK_DEREF, TK_NEG,
 
   /* TODO: Add more token types */
 
@@ -36,9 +42,22 @@ static struct rule {
    * Pay attention to the precedence level of different rules.
    */
 
-  {" +", TK_NOTYPE},    // spaces
-  {"\\+", '+'},         // plus
-  {"==", TK_EQ},        // equal
+  {" +", TK_NOTYPE},             // spaces
+  {"==", TK_EQ},                 // equal
+  {"!=", TK_NOT_EQ},             // not equal
+  {"&&", TK_AND},                // logical and
+  {"\\|\\|", TK_OR},             // logical or
+
+  {"\\+", '+'},                  // plus
+  {"-", '-'},                    // minus / negative
+  {"\\*", '*'},                  // multiply / pointer dereference
+  {"/", '/'},                    // divide
+  {"\\(", '('},                  // left parenthesis
+  {"\\)", ')'},                  // right parenthesis
+
+  {"0[xX][0-9a-fA-F]+",TK_HEX},  // hex num
+  {"\\$\\$?[0-9a-z]+", TK_REG},  // register / PC
+  {"[0-9]+",TK_DEC},             // decimal num
 };
 
 #define NR_REGEX ARRLEN(rules)
@@ -64,10 +83,10 @@ void init_regex() {
 
 typedef struct token {
   int type;
-  char str[32];
+  char str[64];
 } Token;
 
-static Token tokens[32] __attribute__((used)) = {};
+static Token tokens[128] __attribute__((used)) = {};
 static int nr_token __attribute__((used))  = 0;
 
 static bool make_token(char *e) {
@@ -81,11 +100,15 @@ static bool make_token(char *e) {
     /* Try all rules one by one. */
     for (i = 0; i < NR_REGEX; i ++) {
       if (regexec(&re[i], e + position, 1, &pmatch, 0) == 0 && pmatch.rm_so == 0) {
+		/*pmatch储存匹配到的token位置，rm_so是开头，rm_eo是结尾*/
         char *substr_start = e + position;
         int substr_len = pmatch.rm_eo;
 
-        Log("match rules[%d] = \"%s\" at position %d with len %d: %.*s",
-            i, rules[i].regex, position, substr_len, substr_len, substr_start);
+		    Assert(substr_len < 64, "token length exceeds 64 characters."); // 不处理overflow
+
+        /* ===================record token================================ */
+        // Log("match rules[%d] = \"%s\" at position %d with len %d: %.*s",
+        //     i, rules[i].regex, position, substr_len, substr_len, substr_start);
 
         position += substr_len;
 
@@ -95,7 +118,20 @@ static bool make_token(char *e) {
          */
 
         switch (rules[i].token_type) {
-          default: TODO();
+            case TK_NOTYPE:
+                break;
+            case TK_DEC:
+            case TK_HEX:
+            case TK_REG:
+                tokens[nr_token].type = rules[i].token_type;
+                strncpy(tokens[nr_token].str, substr_start, substr_len);
+                tokens[nr_token].str[substr_len] = '\0'; // 手动补'\0'
+                nr_token++;
+                break;
+            default:
+                tokens[nr_token].type = rules[i].token_type;
+                nr_token++;
+                break;
         }
 
         break;
@@ -111,6 +147,134 @@ static bool make_token(char *e) {
   return true;
 }
 
+static bool check_parentheses(int p, int q) {
+	/* 检测是否被括号包含 */
+	if (tokens[p].type != '(' || tokens[q].type != ')') return false;
+  	int balance = 0;
+
+  	for (int i = p; i < q; i++) {
+    	if (tokens[i].type == '(') balance++;
+    	else if (tokens[i].type == ')') balance--;
+    	// 如果在没到最后一个 token 之前 balance 就变成 0，说明首尾括号不是一对
+    	if (balance == 0) return false;
+	}
+	return true; 
+}
+
+/* 优先级定义 */
+static int get_precedence(int type) {
+  switch (type) {
+    case TK_EQ: case TK_NOT_EQ: case TK_AND: case TK_OR: return 0; // 二元运算符运算优先级最低
+    case '+': case '-': return 1; // 加减优先级相同
+    case '*': case '/': return 2; // 乘除优先级高于加减
+    case TK_DEREF: case TK_NEG: return 3;      // 指针解引用和负号优先级更高
+    default: return 100;
+  }
+}
+
+long eval(int p, int q, bool *success) {
+	if (*success == false || p > q) {
+	/* Bad expression */
+    *success = false;
+    return 0;
+  }
+  else if (p == q) {
+        /* Single token */
+        long val = 0;
+        switch(tokens[p].type) {
+            case TK_DEC:
+                sscanf(tokens[p].str, "%ld", &val);
+                return val;
+            case TK_HEX:
+                return (long)strtoul(tokens[p].str, NULL, 0);
+            case TK_REG: {
+                bool reg_success = true;
+                val = (strcmp(tokens[p].str + 1, "pc") == 0) ? cpu.pc : isa_reg_str2val(tokens[p].str + 1, &reg_success); // $前缀
+                if (!reg_success) {
+                    printf("Invalid register: %s\n", tokens[p].str);
+                    *success = false;
+                    return 0;
+                }
+                return val;
+            }
+            case TK_NEG:
+                 // 这种情况不应该发生，因为 TK_NEG 总是会伴随一个操作数
+                 *success = false;
+                 return 0;
+            default:
+                *success = false;
+                return 0;
+        }
+    }
+  else if (check_parentheses(p, q) == true) {
+    return eval(p + 1, q - 1, success);
+  }
+  /* 处理负号 */
+  else if (tokens[p].type == TK_NEG) {
+       word_t val = eval(p + 1, q, success);
+       if (!*success) return 0;
+       return -val;
+   }
+  else {
+	/* Find the main operator */
+    int op = -1;
+    int op_prec = 100;
+    int balance = 0;
+
+    for (int i = p; i <= q; i++) {
+      /* 忽略括号内运算符 */
+      if (tokens[i].type == '(') balance++;
+      else if (tokens[i].type == ')') balance--;
+
+      else if (balance == 0) {
+      	int prec = get_precedence(tokens[i].type);
+      	if (prec != 100 && tokens[i].type != TK_NEG && prec <= op_prec) {
+        	op = i;
+        	op_prec = prec;
+      	}
+      }
+    }
+
+    /* 处理指针解引用，op==p确保*左侧没有tokens */
+    if (op != -1 && op == p && tokens[op].type == TK_DEREF) {
+      word_t val = eval(op + 1, q, success);
+      if (!*success) return 0;
+      return vaddr_read(val, 4);
+    }
+
+    if (op == -1) {
+      // 找不到运算符，说明表达式格式有误
+      *success = false;
+      return 0;
+    }
+
+    // 递归求值左右子表达式
+    long val1 = eval(p, op - 1, success);
+    long val2 = eval(op + 1, q, success);
+	if (*success == false) return 0;
+
+    switch (tokens[op].type) {
+      case '+': return val1 + val2;
+      case '-': return val1 - val2;
+      case '*': return val1 * val2;
+      case '/': 
+        if (val2 == 0) {
+          *success = false;
+          return 0;
+        }
+        return val1 / val2;
+        
+      /* true返回1，false返回0 */
+      case TK_EQ: return val1 == val2;
+      case TK_NOT_EQ: return val1 != val2;
+      case TK_AND: return val1 && val2;
+      case TK_OR: return val1 || val2;
+      default: 
+        *success = false;
+        return 0;
+    }
+  }
+}
 
 word_t expr(char *e, bool *success) {
   if (!make_token(e)) {
@@ -118,8 +282,31 @@ word_t expr(char *e, bool *success) {
     return 0;
   }
 
-  /* TODO: Insert codes to evaluate the expression. */
-  TODO();
+  else {
+    /* 这里判断是不是指针解析和负号 */
+    for (int i = 0; i < nr_token; i++) {
+      if (tokens[i].type == '*') {
+        if (i == 0) {
+          tokens[i].type = TK_DEREF;
+        } else {
+          int prev_type = tokens[i-1].type;
+          if (prev_type != TK_DEC && prev_type != TK_HEX && prev_type != TK_REG && prev_type != ')') {
+            tokens[i].type = TK_DEREF;
+          }
+        }
+      }
+      else if (tokens[i].type == '-') {
+        if (i == 0) {
+          tokens[i].type = TK_NEG;
+        } else {
+          int prev_type = tokens[i-1].type;
+          if (prev_type != TK_DEC && prev_type != TK_HEX && prev_type != TK_REG && prev_type != ')') {
+            tokens[i].type = TK_NEG;
+          }
+        }
+      }
+    }
 
-  return 0;
+    return (word_t)eval(0, nr_token - 1, success);
+  }
 }

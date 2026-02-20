@@ -12,11 +12,14 @@
 *
 * See the Mulan PSL v2 for more details.
 ***************************************************************************************/
+/* cpu-exec.c */
 
 #include <cpu/cpu.h>
 #include <cpu/decode.h>
 #include <cpu/difftest.h>
 #include <locale.h>
+#include <monitor/watchpoint.h>
+#include <monitor/sdb.h>
 
 /* The assembly code of instructions executed is only output to the screen
  * when the number of instructions executed is less than this value.
@@ -32,12 +35,22 @@ static bool g_print_step = false;
 
 void device_update();
 
+bool check_watchpoint();
+
 static void trace_and_difftest(Decode *_this, vaddr_t dnpc) {
 #ifdef CONFIG_ITRACE_COND
   if (ITRACE_COND) { log_write("%s\n", _this->logbuf); }
 #endif
   if (g_print_step) { IFDEF(CONFIG_ITRACE, puts(_this->logbuf)); }
   IFDEF(CONFIG_DIFFTEST, difftest_step(_this->pc, dnpc));
+
+#ifdef CONFIG_WATCHPOINT
+  if (!check_watchpoint()) {
+    nemu_state.state = NEMU_STOP;
+    return;
+  }
+#endif
+
 }
 
 static void exec_once(Decode *s, vaddr_t pc) {
@@ -125,4 +138,26 @@ void cpu_exec(uint64_t n) {
       // fall through
     case NEMU_QUIT: statistic();
   }
+}
+
+bool check_watchpoint() {
+  WP* cur = head;
+  while (cur != NULL) {
+    bool success = true;
+    word_t new_val = expr(cur->expr, &success);
+    if (!success) {
+      printf("Watchpoint %d: %s\n", cur->NO, cur->expr);
+      printf("Expression is wrong\n");
+      return false;
+    }
+    else if (new_val != cur->old_val) {
+      printf("Watchpoint %d: %s\n", cur->NO, cur->expr);
+      printf("Old value = %u,New value = %u\n", cur->old_val, new_val);
+      printf("PC = " FMT_WORD "\n", cpu.pc);
+      cur->old_val = new_val;
+      return false;
+    }
+    cur = cur->next;
+  }
+  return true;
 }

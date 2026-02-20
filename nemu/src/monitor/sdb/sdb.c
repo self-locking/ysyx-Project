@@ -12,12 +12,16 @@
 *
 * See the Mulan PSL v2 for more details.
 ***************************************************************************************/
+/* sdb.c */
 
 #include <isa.h>
 #include <cpu/cpu.h>
 #include <readline/readline.h>
 #include <readline/history.h>
 #include "sdb.h"
+#include <memory/vaddr.h>
+#include <monitor/watchpoint.h>
+#include <stdlib.h>
 
 static int is_batch_mode = false;
 
@@ -54,6 +58,18 @@ static int cmd_q(char *args) {
 
 static int cmd_help(char *args);
 
+static int cmd_si(char *args);
+
+static int cmd_info(char *args);
+
+static int cmd_x(char *args);
+
+static int cmd_p(char *args);
+
+static int cmd_w(char *args);
+
+static int cmd_d(char *args);
+
 static struct {
   const char *name;
   const char *description;
@@ -62,6 +78,12 @@ static struct {
   { "help", "Display information about all supported commands", cmd_help },
   { "c", "Continue the execution of the program", cmd_c },
   { "q", "Exit NEMU", cmd_q },
+  { "si", "Run the program step by step for N instructions", cmd_si },
+  { "info", "Print register status or watchpoint information", cmd_info },
+  { "x", "Scan memory", cmd_x },
+  {"p", "Calculate the value of expression", cmd_p},
+  {"w", "Set watchpoint", cmd_w},
+  {"d", "Delete watchpoint", cmd_d},
 
   /* TODO: Add more commands */
 
@@ -88,6 +110,106 @@ static int cmd_help(char *args) {
       }
     }
     printf("Unknown command '%s'\n", arg);
+  }
+  return 0;
+}
+
+static int cmd_si(char *args) {
+	int n = 1;
+
+	if (args != NULL) {
+		n = atoi(args);
+	}
+	cpu_exec(n);
+
+	return 0;
+}
+
+static int cmd_info(char *args) {
+	if (args == NULL) {
+		printf("Please input the subcmd\n");
+	}
+	else if (strcmp(args, "r") == 0) {
+		isa_reg_display();
+	} 
+	else if (strcmp(args, "w") == 0) {
+		WP* cur = head;
+    if (cur == NULL) {
+      printf("No watchpoint\n");
+      return 0;
+    }
+		while (cur != NULL) {
+			printf("Watchpoint %d: %s\n", cur->NO, cur->expr);
+			cur = cur->next;
+		}
+	}
+	else {
+		printf("Unknown subcmd\n");
+	}
+	return 0;
+}
+
+static int cmd_x(char *args) {
+	if(args == NULL) {
+		printf("Please input the subcmd\n");
+	}
+	else {
+		int N;
+		vaddr_t addr;
+		if (sscanf(args, "%d %x", &N, &addr) == 2) {
+			for (int i = 0; i < N; i++) {	
+				word_t data = vaddr_read(addr, 4);
+				printf("0x%x 0x%x\n", addr, data);
+				addr += 4;
+			}
+		}
+		else {
+			printf("Unknown subcmd\n");
+		}
+	}
+	return 0;
+}
+
+static int cmd_p(char *args) {
+  if (args == NULL) {
+    printf("Please input the expression\n");
+  }
+  else {
+    bool success = true;
+    word_t value = expr(args, &success);
+
+    if(success == false) {
+      printf("Expression is wrong\n");
+    }
+    else printf("%u\n", value);
+  }
+  return 0;
+}
+
+static int cmd_w(char *args) {
+  if (args == NULL) {
+    printf("Please input the expression\n");
+  }
+  else {
+    WP* wp = new_wp();
+    strncpy(wp->expr, args, sizeof(wp->expr) - 1);
+    bool success = true;
+    wp->old_val = expr(wp->expr, &success);
+    if(success == false) {
+      printf("Expression is wrong\n");
+      free_wp(wp);
+    }
+    else printf("Watchpoint %d: %s\n", wp->NO, wp->expr);
+  }
+  return 0;
+}
+static int cmd_d(char *args) {
+  if (args == NULL) {
+    printf("Please input the watchpoint number\n");
+  }
+  else {
+    int NO = atoi(args);
+    free_wp_no(NO); // 用序号索引
   }
   return 0;
 }
