@@ -40,4 +40,8 @@ endef
 _default:
 	@echo "Please run 'make' under subprojects."
 
-.PHONY: .git_commit .clean_index _default
+count:
+	@echo "Total codes(without empty lines)"
+	@find nemu/ -name "*.c" -o -name "*.h" | xargs cat | grep -v '^\s*$$' | wc -l
+
+.PHONY: .git_commit .clean_index _default count
