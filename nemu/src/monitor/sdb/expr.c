@@ -106,14 +106,14 @@ static bool make_token(char *e) {
 
 		    Assert(substr_len < 64, "token length exceeds 64 characters."); // 不处理overflow
 
-        /* ===================record token================================ */
+        /* ============================record token================================ */
         // Log("match rules[%d] = \"%s\" at position %d with len %d: %.*s",
         //     i, rules[i].regex, position, substr_len, substr_len, substr_start);
 
         position += substr_len;
 
         /* TODO: Now a new token is recognized with rules[i]. Add codes
-         * to record the token in the array `tokens'. For certain types
+         * to record the token in the array 'tokens'. For certain types
          * of tokens, some extra actions should be performed.
          */
 
@@ -189,7 +189,7 @@ long eval(int p, int q, bool *success) {
                 return (long)strtoul(tokens[p].str, NULL, 0);
             case TK_REG: {
                 bool reg_success = true;
-                val = (strcmp(tokens[p].str + 1, "pc") == 0) ? cpu.pc : isa_reg_str2val(tokens[p].str + 1, &reg_success); // $前缀
+                val = (strcmp(tokens[p].str + 1, "pc") == 0) ? cpu.pc : isa_reg_str2val(tokens[p].str + 1, &reg_success); // +1为了去掉$前缀
                 if (!reg_success) {
                     printf("Invalid register: %s\n", tokens[p].str);
                     *success = false;
@@ -197,10 +197,6 @@ long eval(int p, int q, bool *success) {
                 }
                 return val;
             }
-            case TK_NEG:
-                 // 这种情况不应该发生，因为 TK_NEG 总是会伴随一个操作数
-                 *success = false;
-                 return 0;
             default:
                 *success = false;
                 return 0;

@@ -20,7 +20,7 @@ void init_monitor(int, char *[]);
 void am_init_monitor();
 void engine_start();
 int is_exit_status_bad();
-// word_t expr(char *e, bool *success);
+word_t expr(char *e, bool *success);
 
 // void test_expr() {
 //   const char *filepath = "./tools/gen-expr/input";
@@ -34,7 +34,7 @@ int is_exit_status_bad();
 //         char expression[1000];
 
 //         // 使用 sscanf 解析每一行
-//         // 一个无符号长整型 (%lu)，一个空格，然后是直到行尾的所有字符 (%[^\n])
+//         // 一个无符号整型 (%u)，一个空格，然后是直到行尾的所有字符 (%[^\n])
 //         if (sscanf(line_buffer, "%u %999[^\n]", &expected_result, expression) == 2) {
 //             bool success = true;
 //             word_t actual_result = expr(expression, &success);

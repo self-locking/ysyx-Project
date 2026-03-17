@@ -51,7 +51,7 @@ module sCPU(clk, rst, en, seg0, seg1);
 
 	seg my_seg0 (.sel(data2[3:0]), .seg(SEG0));
 	seg my_seg1 (.sel(data2[7:4]), .seg(SEG1));
-	assign seg0 = out ? SEG0 : 8'b11111111;
-	assign seg1 = out ? SEG1 : 8'b11111111;
+	assign seg0 = out ? SEG0 : 8'b00000000;
+	assign seg1 = out ? SEG1 : 8'b00000000;
 
 endmodule

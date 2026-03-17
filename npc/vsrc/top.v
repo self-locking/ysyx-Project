@@ -1,5 +1,6 @@
-//顶层文件名为top，因此等会include的头文件为Vtop
-//若顶层文件名为example，则include的头文件名为Vexample
+// 顶层文件名为top，因此等会include的头文件为Vtop
+// 若顶层文件名为example，则include的头文件名为Vexample
+
 module top(
 	input clk,
 	input rst,
@@ -21,5 +22,15 @@ module top(
 			end
 		end
 	end
-
 endmodule
+
+// module top(
+// 	input a,
+// 	input b,
+// 	input rst,
+// 	output f
+// );
+
+// 	assign f = rst ? 0 : a ^ b;
+
+// endmodule

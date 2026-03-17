@@ -27,7 +27,7 @@ int main() {
 	int run = 1;
 	int n = 33000;
 	while (run) {
-        int next = (current + 1) % 8; // loop from 0 to 8
+        int next = (current + 1) % 8; // loop from 0 to 7
 
         int R1 = (color[current] >> 16) & 0xff;
         int G1 = (color[current] >> 8)  & 0xff;

@@ -53,6 +53,7 @@ static int cmd_c(char *args) {
 
 
 static int cmd_q(char *args) {
+  nemu_state.state = NEMU_QUIT;
   return -1;
 }
 
@@ -130,7 +131,8 @@ static int cmd_info(char *args) {
 		printf("Please input the subcmd\n");
 	}
 	else if (strcmp(args, "r") == 0) {
-		isa_reg_display();
+		// nemu/src/isa/$ISA/reg.c
+    isa_reg_display();
 	} 
 	else if (strcmp(args, "w") == 0) {
 		WP* cur = head;
@@ -150,24 +152,42 @@ static int cmd_info(char *args) {
 }
 
 static int cmd_x(char *args) {
-	if(args == NULL) {
-		printf("Please input the subcmd\n");
-	}
-	else {
-		int N;
-		vaddr_t addr;
-		if (sscanf(args, "%d %x", &N, &addr) == 2) {
-			for (int i = 0; i < N; i++) {	
-				word_t data = vaddr_read(addr, 4);
-				printf("0x%x 0x%x\n", addr, data);
-				addr += 4;
-			}
-		}
-		else {
-			printf("Unknown subcmd\n");
-		}
-	}
-	return 0;
+  if (args == NULL) {
+    printf("Please input the subcmd\n");
+    return 0;
+  }
+
+  int N;
+  vaddr_t addr;
+  char *expr_str;
+  bool x_success = true;
+
+  expr_str = strtok(args, " ");
+  if (expr_str == NULL) {
+    printf("Unknown subcmd\n");
+    return 0;
+  }
+
+  N = atoi(expr_str);            // 取第一个参数为次数
+  expr_str = strtok(NULL, "");   // 取剩余全部字符串
+  if (expr_str == NULL) {
+    printf("Unknown subcmd\n");
+    return 0;
+  }
+
+  addr = expr(expr_str, &x_success);
+  if (!x_success) {
+    printf("Wrong expression\n");
+    return 0;
+  }
+
+  for (int i = 0; i < N; i++) {
+    word_t data = vaddr_read(addr, 4);
+    printf("0x%x: 0x%x\n", addr, data);
+    addr += 4;
+  }
+
+  return 0;
 }
 
 static int cmd_p(char *args) {
@@ -193,6 +213,7 @@ static int cmd_w(char *args) {
   else {
     WP* wp = new_wp();
     strncpy(wp->expr, args, sizeof(wp->expr) - 1);
+    wp->expr[sizeof(wp->expr) - 1] = '\0';
     bool success = true;
     wp->old_val = expr(wp->expr, &success);
     if(success == false) {
@@ -203,13 +224,14 @@ static int cmd_w(char *args) {
   }
   return 0;
 }
+
 static int cmd_d(char *args) {
   if (args == NULL) {
     printf("Please input the watchpoint number\n");
   }
   else {
-    int NO = atoi(args);
-    free_wp_no(NO); // 用序号索引
+    int NO = atoi(args); // 没有防御性编程，调用时别乱输
+    free_wp_no(NO);      // 用序号索引
   }
   return 0;
 }
