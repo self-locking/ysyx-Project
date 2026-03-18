@@ -1,4 +1,4 @@
-#include <Vex6.h>
+#include <Vex3.h>
 #include <nvboard.h>
 
 static TOP_NAME dut;

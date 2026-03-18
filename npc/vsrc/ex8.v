@@ -50,6 +50,6 @@ initial begin
     $readmemh("resource/picture.hex", vga_mem);
 end
 
-assign vga_data = vga_mem[19'(v_addr * 10'd640 + h_addr)]; // 20位截为19位
+assign vga_data = vga_mem[{h_addr, v_addr}];
 
 endmodule

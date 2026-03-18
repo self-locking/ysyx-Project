@@ -10,7 +10,7 @@ module ex2(
 		if(!en) begin
 			signal = 0;
 			out = 0;
-			hex0 = ~8'b00000000;
+			hex0 = 0;
 		end else begin	
 			casez(sw)
 				8'b1zzzzzzz: begin
