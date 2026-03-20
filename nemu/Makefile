@@ -61,3 +61,19 @@ else
 # Include rules to build NEMU
 include $(NEMU_HOME)/scripts/native.mk
 endif
+
+# make expand FILE=fileName.c
+expand:
+	@echo "Expanding $(FILE)..."
+	@$(CC) -E -P \
+	  -Iinclude \
+	  -Iisa/riscv32/include \
+	  -I$(dir $(FILE)) \
+	  $(CFLAGS) $(CPPFLAGS) \
+	  -D__GUEST_ISA__=$(GUEST_ISA) \
+	  -D$(CONFIG_ITRACE) \
+	  $(FILE) | \
+	grep -vE '^#define __' | \
+	grep -vE 'typedef|struct|static|inline|__attribute__' \
+	> $(FILE).expanded
+	@echo "Output -> $(FILE).expanded (only macro-expanded content)"

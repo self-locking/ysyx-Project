@@ -31,6 +31,9 @@ __attribute__((always_inline))
 static inline void pattern_decode(const char *str, int len,
     uint64_t *key, uint64_t *mask, uint64_t *shift) {
   uint64_t __key = 0, __mask = 0, __shift = 0;
+/* __key负责记录‘1’的位置； */
+/* __mask负责记录需要匹配的位置 */
+/* __shift负责将上述两个变量对齐位移 */  
 #define macro(i) \
   if ((i) >= len) goto finish; \
   else { \
@@ -44,6 +47,7 @@ static inline void pattern_decode(const char *str, int len,
     } \
   }
 
+/* 相当于遍历str，但是这样写提高了CPU性能 */
 #define macro2(i)  macro(i);   macro((i) + 1)
 #define macro4(i)  macro2(i);  macro2((i) + 2)
 #define macro8(i)  macro4(i);  macro4((i) + 4)
@@ -52,6 +56,7 @@ static inline void pattern_decode(const char *str, int len,
 #define macro64(i) macro32(i); macro32((i) + 32)
   macro64(0);
   panic("pattern too long");
+/* 销毁最底层宏定义，该操作在预处理阶段就完成了 */
 #undef macro
 finish:
   *key = __key >> __shift;
