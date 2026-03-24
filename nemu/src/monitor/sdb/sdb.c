@@ -193,16 +193,33 @@ static int cmd_x(char *args) {
 static int cmd_p(char *args) {
   if (args == NULL) {
     printf("Please input the expression\n");
+    return 0;
   }
-  else {
-    bool success = true;
-    word_t value = expr(args, &success);
 
-    if(success == false) {
-      printf("Expression is wrong\n");
-    }
-    else printf("%u\n", value);
+  bool hex = false;
+
+  // 判断是否是 p/x 开头
+  if (strncmp(args, "/x", 2) == 0) {
+    hex = true;
+    args += 2;  // 跳过 "/x"
+    
+    // 跳过空格
+    while (*args == ' ') args++;
   }
+
+  bool success = true;
+  word_t value = expr(args, &success);
+
+  if (!success) {
+    printf("Expression is wrong\n");
+  } else {
+    if (hex) {
+      printf("0x%x\n", value);
+    } else {
+      printf("%u\n", value);
+    }
+  }
+
   return 0;
 }
 
