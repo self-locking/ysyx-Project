@@ -29,7 +29,7 @@ enum {
   TK_NOT_EQ, TK_AND, TK_OR,
   TK_DEREF, TK_NEG,
 
-  /* TODO: Add more token types */
+  /* Add more token types if necessary*/
 
 };
 
@@ -38,7 +38,7 @@ static struct rule {
   int token_type;
 } rules[] = {
 
-  /* TODO: Add more rules.
+  /* Add more rules if necessary.
    * Pay attention to the precedence level of different rules.
    */
 
@@ -112,7 +112,7 @@ static bool make_token(char *e) {
 
         position += substr_len;
 
-        /* TODO: Now a new token is recognized with rules[i]. Add codes
+        /* Now a new token is recognized with rules[i]. Add codes
          * to record the token in the array 'tokens'. For certain types
          * of tokens, some extra actions should be performed.
          */

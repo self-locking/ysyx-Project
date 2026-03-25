@@ -9,7 +9,7 @@ typedef struct watchpoint {
   char expr[64];
   word_t old_val;
 
-  /* TODO: Add more members if necessary */
+  /* Add more members if necessary */
 
 } WP;
 

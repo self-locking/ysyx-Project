@@ -86,7 +86,7 @@ static struct {
   {"w", "Set watchpoint", cmd_w},
   {"d", "Delete watchpoint", cmd_d},
 
-  /* TODO: Add more commands */
+  /* Add more commands if necessary*/
 
 };
 
