@@ -1,6 +1,7 @@
-NAME = add
-SRCS = add.c
-include $(AM_HOME)/Makefile
+ifeq ($(NAME), )
+	$(error [Error]: no file name)
+endif
 
-$(info DEBUG: NAME is $(NAME))
-$(info DEBUG: IMAGE is $(IMAGE))
+SRCS = ./src/$(NAME).c
+
+include $(AM_HOME)/Makefile
