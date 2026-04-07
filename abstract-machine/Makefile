@@ -100,7 +100,7 @@ $(DST_DIR)/%.o: %.c
 	@mkdir -p $(dir $@) && echo + CC $<
 	@$(CC) -std=gnu11 $(CFLAGS) -c -o $@ $(realpath $<)
 
-### Rule (compile): a single `.cc` -> `.o` (g++)
+### Rule (compile): a single `.cc` -> `.o` (g++) .cc相当于.cpp
 $(DST_DIR)/%.o: %.cc
 	@mkdir -p $(dir $@) && echo + CXX $<
 	@$(CXX) -std=c++17 $(CXXFLAGS) -c -o $@ $(realpath $<)
@@ -117,11 +117,13 @@ $(DST_DIR)/%.o: %.S
 
 ifeq ($(MAKECMDGOALS),archive)
 ### Rule (archive): objects (`*.o`) -> `ARCHIVE.a` (ar)
+# 编译成库
 $(ARCHIVE): $(OBJS)
 	@echo + AR "->" $(shell realpath $@ --relative-to .)
 	@$(AR) rcs $@ $^
 else
 # $(1): library name
+# 编译函数
 define LIB_TEMPLATE =
 $$(AM_HOME)/$(1)/build/$(1)-$$(ARCH).a: force
 	@$$(MAKE) -s -C $$(AM_HOME)/$(1) archive

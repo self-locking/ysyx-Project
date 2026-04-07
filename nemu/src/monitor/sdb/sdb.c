@@ -71,6 +71,8 @@ static int cmd_w(char *args);
 
 static int cmd_d(char *args);
 
+static int cmd_pc(char *args);
+
 static struct {
   const char *name;
   const char *description;
@@ -85,6 +87,7 @@ static struct {
   {"p", "Calculate the value of expression", cmd_p},
   {"w", "Set watchpoint", cmd_w},
   {"d", "Delete watchpoint", cmd_d},
+  {"pc", "print the current pc and instruction", cmd_pc},
 
   /* Add more commands if necessary*/
 
@@ -250,6 +253,15 @@ static int cmd_d(char *args) {
     int NO = atoi(args); // 没有防御性编程，调用时别乱输
     free_wp_no(NO);      // 用序号索引
   }
+  return 0;
+}
+
+static int cmd_pc(char *args) {
+  if (args == NULL) {
+    printf("0x%x: 0x%x\n", cpu.pc, vaddr_read(cpu.pc, 4));
+  }
+  else printf("wrong cmd\n");
+
   return 0;
 }
 
