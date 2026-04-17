@@ -23,7 +23,7 @@ compile_git:
 $(BINARY):: compile_git
 
 # Some convenient rules
-
+# ARGS可以make手动添加
 override ARGS ?= --log=$(BUILD_DIR)/nemu-log.txt
 override ARGS += $(ARGS_DIFF)
 

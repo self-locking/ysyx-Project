@@ -22,6 +22,7 @@ endif
 -include $(NEMU_HOME)/include/config/auto.conf
 -include $(NEMU_HOME)/include/config/auto.conf.cmd
 
+# 定义去掉引号
 remove_quote = $(patsubst "%",%,$(1))
 
 # Extract variabls from menuconfig
@@ -29,14 +30,15 @@ GUEST_ISA ?= $(call remove_quote,$(CONFIG_ISA))
 ENGINE ?= $(call remove_quote,$(CONFIG_ENGINE))
 NAME    = $(GUEST_ISA)-nemu-$(ENGINE)
 
-# Include all filelist.mk to merge file lists
+# Include all filelist.mk to merge file lists 每个目录管理自己的文件
 FILELIST_MK = $(shell find -L ./src -name "filelist.mk")
 include $(FILELIST_MK)
 
-# Filter out directories and files in blacklist to obtain the final set of source files
+# Filter out directories and files in blacklist to obtain the final set of source files 不编译黑名单中的.c文件
 DIRS-BLACKLIST-y += $(DIRS-BLACKLIST)
 SRCS-BLACKLIST-y += $(SRCS-BLACKLIST) $(shell find -L $(DIRS-BLACKLIST-y) -name "*.c")
 SRCS-y += $(shell find -L $(DIRS-y) -name "*.c")
+# filter-out A, B 从B中删除所有出现在A的元素
 SRCS = $(filter-out $(SRCS-BLACKLIST-y),$(SRCS-y))
 
 # Extract compiler and options from menuconfig
@@ -62,7 +64,7 @@ else
 include $(NEMU_HOME)/scripts/native.mk
 endif
 
-# make expand FILE=fileName.c
+# make expand FILE=fileName.c 输出.c文件宏展开后的代码到文件中
 expand:
 	@echo "Expanding $(FILE)..."
 	@$(CC) -E -P \
