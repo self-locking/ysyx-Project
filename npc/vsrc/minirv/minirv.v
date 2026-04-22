@@ -1,7 +1,8 @@
 module minirv (
     input wire clk,
     input wire rst,
-    output wire result
+    output wire [31:0] PC,
+    output wire [31:0] result
 );
 
 /*============ IFU ==============*/
@@ -16,8 +17,8 @@ wire [31:0] data1;
 wire [31:0] data2;
 wire [31:0] data3;
 wire [31:0] data4;
-wire [2:0] exu_op; // can add more bits
-wire [31:0] rd_addr;
+wire [3:0] exu_op; // can add more bits
+wire [4:0] rd_addr;
 
 /*============ EXU ==============*/
 wire [31:0] exu_addr;
@@ -27,9 +28,12 @@ wire [31:0] exu_data;
 wire [3:0] lsu_op;
 wire [31:0] lsu_rdata;
 wire [31:0] lsu_wdata;
+wire inst_sb;
 
 /*============ RAM ==============*/
 wire ram_wen;
+wire [31:0] raddr;
+wire [31:0] waddr;
 wire [31:0] ram_rdata;
 wire [31:0] ram_inst;
 
@@ -69,7 +73,7 @@ IDU idu2 (
     .data1      (data1      ),
     .data2      (data2      ),
     .data3      (data3      ),
-    .imm        (imm        ),
+    .data4      (data4      ),
     .lsu_op     (lsu_op     ),
     .wbu_op     (wbu_op     )
 );
@@ -79,7 +83,7 @@ EXU exu3 (
     .data1      (data1      ),
     .data2      (data2      ),
     .data3      (data3      ),
-    .imm        (imm        ),
+    .data4      (data4      ),
     .jump       (jump       ),
     .jump_pc    (jump_pc    ),
     .exu_addr   (exu_addr   ),
@@ -89,40 +93,50 @@ EXU exu3 (
 LSU lsu4 (
     .lsu_op     (lsu_op     ),
     .exu_wdata  (exu_data   ),
-    .addr       (exu_addr   ),
+    .addr_i     (exu_addr   ),
     .rdata_i    (ram_rdata  ),
+    .addr_o1    (raddr      ),
+    .addr_o2    (waddr      ),
     .rdata_o    (lsu_rdata  ),
     .wdata_en   (ram_wen    ),
-    .wdata      (lsu_wdata  )
+    .inst_sb    (inst_sb    ),
+    .store_data (lsu_wdata  )
 );
 
 RAM ram5 (
     .clk        (clk        ),
     .pc         (pc         ),
-    .en         (ram_wen    ),
+    .raddr      (raddr      ),
+    .waddr      (waddr      ),
+    .wen        (ram_wen    ),
     .wdata      (lsu_wdata  ),
+    .inst_sb    (inst_sb    ),
     .rdata      (ram_rdata  ),
-    .inst       (ram_inst   ),
+    .inst       (ram_inst   )
 );
 
 WBU wbu6 (
     .lsu_data   (lsu_rdata  ),
     .exu_data   (exu_data   ),
     .wbu_op     (wbu_op     ),
-    .reg_wen    (reg_wen   ),
-    .wbu_data   (wbu_data   )
+    .wbu_data   (wbu_wdata   )
 );
 
 GPR gpr7 (
     .clk        (clk        ),
-    .wdata      (wbu_data   ),
+    .rst        (rst        ),
+    .wdata      (wbu_wdata  ),
     .waddr      (rd_addr    ),
     .wen        (reg_wen    ),
     .addr1      (rs1_addr   ),
     .addr2      (rs2_addr   ),
     .src1       (src1       ),
-    .src2       (src2       )
+    .src2       (src2       ),
+    .test_result(result     )
 );
+
+
+assign PC = pc;
 
 endmodule
 

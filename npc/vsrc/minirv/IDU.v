@@ -8,7 +8,7 @@ module IDU (
     output wire [4:0] rs2_addr,
     output wire [4:0] rd_addr,
     output wire wen,
-    output wire [2:0] exu_op, // can add more bits
+    output wire [3:0] exu_op, // can add more bits
     output wire [31:0] data1,
     output wire [31:0] data2,
     output wire [31:0] data3,
@@ -66,7 +66,7 @@ assign inst_sb = s_type & (func == 3'h0);
 assign rs1_addr = inst_i[19:15]; 
 assign rs2_addr = inst_i[24:20];
 assign rd_addr = inst_i[11:7];
-assign wen = r_type | i_type | u_type;
+assign wen = (r_type | i_type | u_type) & (|rd_addr);
 
 // add or addi
 assign exu_op[0] = inst_add | inst_addi;
@@ -74,6 +74,8 @@ assign exu_op[0] = inst_add | inst_addi;
 assign exu_op[1] = inst_lui;
 // sb or sw
 assign exu_op[2] = s_type;
+// jalr
+assign exu_op[3] = inst_jalr;
 
 assign data1 = (r_type | i_type | s_type) ? src1 : snpc;
 assign data2 = (r_type | s_type) ? src2 : ((i_type) ? imm : 0);
