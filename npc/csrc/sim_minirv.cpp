@@ -1,13 +1,26 @@
+#include <stdio.h>
 #include <verilated.h>
 #include "Vminirv.h"
 #include "verilated_fst_c.h"
-
+#include "svdpi.h"
+#include "Vminirv__Dpi.h"
 
 // 用于采样
 void step_and_dump(Vminirv* top, VerilatedFstC* tfp, VerilatedContext* contextp) {
     top->eval();
     contextp->timeInc(1);
     tfp->dump(contextp->time());
+}
+
+// ebreak实现
+static int is_running = 1;
+extern "C" void halt (int a) {
+    is_running = 0;
+    if (a) {
+        printf("\n\33[1;31mHIT BAD TRAP\33[0m\n");
+    }
+    else printf("\n\33[1;32mHIT GOOD TRAP\33[0m\n");
+    return;
 }
 
 int main (int argc, char **argv) {
@@ -29,14 +42,12 @@ int main (int argc, char **argv) {
     step_and_dump(top, tfp, contextp);
 	top->rst = 0;
 
-    int cycle = 7; // 执行n-1条指令
-    while (cycle--) {
+    // int cycle = 7; // 执行n-1条指令
+    while (is_running) {
         top->clk = 0;
         step_and_dump(top, tfp, contextp);
         top->clk = 1;
         step_and_dump(top, tfp, contextp);
-
-        printf("PC = %08x, Result = %d\n", top->PC, top->result);
     }
 
 	// 清理top仿真模型，并销毁相关指针，并将指针变为空指针

@@ -1,3 +1,5 @@
+import "DPI-C" function int pmem_read(input int raddr);
+import "DPI-C" function void pmem_write(input int waddr, input int wdata);
 module RAM #(ADDR_WIDTH = 32, DATA_WIDTH = 32) (
     input wire clk,
     input wire [ADDR_WIDTH-1:0] pc,
@@ -18,18 +20,6 @@ reg [1:0] sel;
 wire [3:0] byte_pc;
 wire [31:0] repeat_data;
 
-reg [DATA_WIDTH-1:0] mem [31:0];
-
-assign mem[0] = 32'h02000093;       // addi x1, x0, 32
-assign mem[1] = 32'h12345137;       // lui x2, 74565
-assign mem[2] = 32'h67810113;       // addi x2, x2, 1656
-assign mem[3] = 32'h0020A023;       // sw x2, 0(x1)
-assign mem[4] = 32'hFFF00193;       // addi x3, x0, -1
-assign mem[5] = 32'h003080A3;       // sb x3, 1(x1)
-assign mem[6] = 32'h0;              //
-assign mem[7] = 32'h00c48633;       //
-assign mem[8] = 32'hfffff7b7;       //
-
 assign byte_waddr = waddr[5:2];
 assign BE = waddr[1:0];
 assign repeat_data = {4{wdata[7:0]}};
@@ -46,15 +36,15 @@ end
 
 always @(posedge clk) begin
     if (wen) begin 
-        if (inst_sb) mem[byte_waddr] <= ((mem[byte_waddr] & ~mask) | repeat_data & mask);
-        else mem[byte_waddr] <= wdata;
+        if (inst_sb) pmem_write(byte_waddr, (pmem_read(byte_waddr) & ~mask) | (repeat_data & mask) );
+        else pmem_write(byte_waddr, wdata);
     end
 end
 
 assign byte_raddr = raddr[5:2];
-assign rdata = mem[byte_raddr];
+assign rdata = pmem_read(byte_raddr);
 
 assign byte_pc = pc[5:2];
-assign inst = mem[byte_pc];
+assign inst = pmem_read(byte_pc);
 
 endmodule

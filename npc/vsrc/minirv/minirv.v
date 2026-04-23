@@ -1,8 +1,7 @@
 module minirv (
     input wire clk,
     input wire rst,
-    output wire [31:0] PC,
-    output wire [31:0] result
+    output wire [31:0] PC
 );
 
 /*============ IFU ==============*/
@@ -17,7 +16,7 @@ wire [31:0] data1;
 wire [31:0] data2;
 wire [31:0] data3;
 wire [31:0] data4;
-wire [3:0] exu_op; // can add more bits
+wire [4:0] exu_op; // can add more bits
 wire [4:0] rd_addr;
 
 /*============ EXU ==============*/
@@ -47,6 +46,7 @@ wire [4:0] rs1_addr;
 wire [4:0] rs2_addr;
 wire [31:0] src1;
 wire [31:0] src2;
+wire [31:0] a0;
 
 IFU ifu1 (
     .clk        (clk        ),
@@ -79,11 +79,13 @@ IDU idu2 (
 );
 
 EXU exu3 (
+    .clk        (clk        ),
     .exu_op     (exu_op     ),
     .data1      (data1      ),
     .data2      (data2      ),
     .data3      (data3      ),
     .data4      (data4      ),
+    .a0         (a0         ),
     .jump       (jump       ),
     .jump_pc    (jump_pc    ),
     .exu_addr   (exu_addr   ),
@@ -132,7 +134,7 @@ GPR gpr7 (
     .addr2      (rs2_addr   ),
     .src1       (src1       ),
     .src2       (src2       ),
-    .test_result(result     )
+    .a0         (a0         )
 );
 
 
