@@ -1,7 +1,7 @@
 module minirv (
     input wire clk,
     input wire rst,
-    output wire [31:0] PC
+    output wire [31:0] cp
 );
 
 /*============ IFU ==============*/
@@ -31,6 +31,7 @@ wire inst_sb;
 
 /*============ RAM ==============*/
 wire ram_wen;
+wire ram_ren;
 wire [31:0] raddr;
 wire [31:0] waddr;
 wire [31:0] ram_rdata;
@@ -100,6 +101,7 @@ LSU lsu4 (
     .addr_o1    (raddr      ),
     .addr_o2    (waddr      ),
     .rdata_o    (lsu_rdata  ),
+    .rdata_en   (ram_ren    ),
     .wdata_en   (ram_wen    ),
     .inst_sb    (inst_sb    ),
     .store_data (lsu_wdata  )
@@ -109,6 +111,7 @@ RAM ram5 (
     .clk        (clk        ),
     .pc         (pc         ),
     .raddr      (raddr      ),
+    .ren        (ram_ren    ),
     .waddr      (waddr      ),
     .wen        (ram_wen    ),
     .wdata      (lsu_wdata  ),
@@ -137,8 +140,7 @@ GPR gpr7 (
     .a0         (a0         )
 );
 
-
-assign PC = pc;
+assign cp = pc;
 
 endmodule
 

@@ -1,9 +1,10 @@
 import "DPI-C" function int pmem_read(input int raddr);
-import "DPI-C" function void pmem_write(input int waddr, input int wdata);
+import "DPI-C" function void pmem_write(input int waddr, input int wdata, input int mask);
 module RAM #(ADDR_WIDTH = 32, DATA_WIDTH = 32) (
     input wire clk,
     input wire [ADDR_WIDTH-1:0] pc,
     input wire [ADDR_WIDTH-1:0] raddr,
+    input wire ren,
     input wire [ADDR_WIDTH-1:0] waddr,
     input wire wen,
     input wire [DATA_WIDTH-1:0] wdata,
@@ -12,39 +13,39 @@ module RAM #(ADDR_WIDTH = 32, DATA_WIDTH = 32) (
     output wire [DATA_WIDTH-1:0] inst
 );
 
-wire [3:0] byte_waddr;
-wire [3:0] byte_raddr;
-wire [1:0] BE;
-reg [31:0] mask;
+reg [2:0] mask;
 reg [1:0] sel;
-wire [3:0] byte_pc;
-wire [31:0] repeat_data;
-
-assign byte_waddr = waddr[5:2];
-assign BE = waddr[1:0];
-assign repeat_data = {4{wdata[7:0]}};
+reg [DATA_WIDTH-1:0] pmem_rdata;
 
 always @(*) begin
-    sel = BE;
-    case (sel) 
-        2'b00: mask = 32'h000000FF;
-        2'b01: mask = 32'h0000FF00;
-        2'b10: mask = 32'h00FF0000;
-        2'b11: mask = 32'hFF000000;
-    endcase
+    sel = waddr[1:0];
+    if (inst_sb) begin
+        case (sel) 
+            2'b00: mask = 3'd1;
+            2'b01: mask = 3'd2;
+            2'b10: mask = 3'd3;
+            2'b11: mask = 3'd4;
+        endcase
+    end else begin
+        mask = 0;
+    end
 end
 
 always @(posedge clk) begin
     if (wen) begin 
-        if (inst_sb) pmem_write(byte_waddr, (pmem_read(byte_waddr) & ~mask) | (repeat_data & mask) );
-        else pmem_write(byte_waddr, wdata);
+        pmem_write(waddr >> 2, wdata, mask);
     end
 end
 
-assign byte_raddr = raddr[5:2];
-assign rdata = pmem_read(byte_raddr);
+always @(*) begin
+    if (ren) begin
+        pmem_rdata = pmem_read(raddr >> 2);
+    end else begin
+        pmem_rdata = 0;
+    end
+end
 
-assign byte_pc = pc[5:2];
-assign inst = pmem_read(byte_pc);
+assign rdata = pmem_rdata;
+assign inst = pmem_read(pc >> 2);
 
 endmodule
