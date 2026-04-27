@@ -58,13 +58,14 @@
 
 # 生成波形
 # 配置
-TOP_MODULE      := minirv                    # 你的 Verilog 顶层模块名
-SIM_TOP_CPP     := csrc/sim_minirv.cpp       # C++ 仿真入口
-V_SOURCES       := vsrc/minirv/*.v           # .v文件入口
+TOP_MODULE      := minirv                    	# Verilog 顶层模块名
+SIM_TOP_CPP     := csrc/sim_minirv.cpp       	# C++ 仿真入口
+V_SOURCES       := vsrc/minirv/*.v           	# .v文件入口
 OBJ_DIR         := obj_dir
-SIM_BIN         := $(OBJ_DIR)/V$(TOP_MODULE) # 编译后的可执行文件目录
+SIM_BIN         := $(OBJ_DIR)/V$(TOP_MODULE) 	# 编译后的可执行文件目录
 WAVE_DIR        := wave_logs
 WAVE_FILE       := $(WAVE_DIR)/minirv_wave.fst  # 波形文件路径
+IMG				?= 								# 二进制文件
 
 # 确保波形目录存在
 $(shell mkdir -p $(WAVE_DIR))
@@ -75,7 +76,7 @@ all: sim
 
 sim: $(SIM_BIN)
 	$(call git_commit, "sim RTL") # DO NOT REMOVE THIS LINE!!!
-	./$(SIM_BIN)
+	./$(SIM_BIN) $(IMG)
 	@echo "Stimulation finished."
 
 # 编译规则，--trace-fst开启波形输出，-j多线程加速编译，-Who*忽略一些Verilator警告

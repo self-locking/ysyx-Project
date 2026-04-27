@@ -12,7 +12,7 @@ module IFU (
 reg [31:0] pc;
 
 always @(posedge clk) begin
-    if (rst) pc <= 32'h00000000;
+    if (rst) pc <= 32'h80000000;
     else pc <= (jump) ? jump_pc : pc + 4;
 end
 

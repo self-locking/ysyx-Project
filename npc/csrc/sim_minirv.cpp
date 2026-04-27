@@ -64,6 +64,7 @@ void step_and_dump(Vminirv* top, VerilatedFstC* tfp, VerilatedContext* contextp)
 }
 
 int main (int argc, char **argv) {
+    
     VerilatedContext *contextp = new VerilatedContext;// contextp用来保存仿真的时间
     contextp->commandArgs(argc, argv);                // 传递参数给verilator
     Vminirv* top = new Vminirv{contextp};
@@ -75,7 +76,13 @@ int main (int argc, char **argv) {
 	tfp->open("wave_logs/minirv_wave.fst");    // 写入波形文件，文件地址和文件名可以自定义
 
     // 写入数据
-    const char *binfile = "./resource/mem.bin";
+    // const char *binfile = "./resource/sum.bin";
+    const char *binfile = argc > 1 ? argv[1] : nullptr;
+    if (binfile == nullptr) {
+        perror("\33[1;31mLack of binfile name\33[0m\n");
+        return 1;
+    }
+
 
     FILE *fp = fopen(binfile, "rb");
     if (fp == nullptr) {
@@ -86,7 +93,8 @@ int main (int argc, char **argv) {
     size_t n = fread(pmem, sizeof(uint32_t), M_WORDS, fp);
     fclose(fp);
 
-    pmem[0x486] = 0x100073;
+    // pmem[0x486] = 0x100073; // mem.bin
+    // pmem[0x89] = 0x100073; // sum.bin
 
     // 初始化信号并稳定路
 	top->rst = 1;

@@ -1,7 +1,7 @@
 module minirv (
     input wire clk,
     input wire rst,
-    output wire [31:0] cp
+    output wire [31:0] PC
 );
 
 /*============ IFU ==============*/
@@ -140,7 +140,7 @@ GPR gpr7 (
     .a0         (a0         )
 );
 
-assign cp = pc;
+assign PC = pc;
 
 endmodule
 

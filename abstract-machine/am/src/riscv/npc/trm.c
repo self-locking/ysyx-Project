@@ -15,6 +15,8 @@ void putch(char ch) {
 }
 
 void halt(int code) {
+  asm volatile("mv a0, %0; ebreak" : :"r"(code)); // 告诉编译器不要优化，原封不动写入
+
   while (1);
 }
 
