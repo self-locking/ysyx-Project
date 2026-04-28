@@ -6,33 +6,42 @@
 #include "svdpi.h"
 #include "Vminirv__Dpi.h"
 
-#define M_WORDS (1U << 24)
+#define MAX_SIZE 0x2000000
+#define MBASE 0x20000000
 
 static int is_running = 1;
-static uint32_t pmem[M_WORDS];
+static uint32_t pmem[MAX_SIZE];
 
 extern "C" int pmem_read(int raddr) {
-    return pmem[raddr];
+    uint32_t u_raddr = (uint32_t) raddr;
+
+    if (u_raddr < MBASE || u_raddr - MBASE >= MAX_SIZE) {
+        // out of bound
+        return 0;
+    }
+
+    return pmem[u_raddr - MBASE];
 }
 
 extern "C" void pmem_write(int waddr, int wdata, int mask) {
     uint8_t data = uint8_t(wdata & 0xFF);
+    uint32_t paddr = waddr - MBASE;
     switch (mask)
     {
     case 0:
-        pmem[waddr] = wdata;
+        pmem[paddr] = wdata;
         break;
     case 1:
-        pmem[waddr] = (pmem[waddr] & ~0x000000FF) | data;
+        pmem[paddr] = (pmem[paddr] & ~0x000000FF) | data;
         break;
     case 2:
-        pmem[waddr] = (pmem[waddr] & ~0x0000FF00) | (data << 8);
+        pmem[paddr] = (pmem[paddr] & ~0x0000FF00) | (data << 8);
         break;
     case 3:
-        pmem[waddr] = (pmem[waddr] & ~0x00FF0000) |(data << 16);
+        pmem[paddr] = (pmem[paddr] & ~0x00FF0000) |(data << 16);
         break;
     case 4:
-        pmem[waddr] = (pmem[waddr] & ~0xFF000000) | (data << 24);
+        pmem[paddr] = (pmem[paddr] & ~0xFF000000) | (data << 24);
         break;
     default:
         break;
@@ -90,7 +99,7 @@ int main (int argc, char **argv) {
         return 1;
     }
 
-    size_t n = fread(pmem, sizeof(uint32_t), M_WORDS, fp);
+    size_t n = fread(pmem, sizeof(uint32_t), MAX_SIZE, fp);
     fclose(fp);
 
     // pmem[0x486] = 0x100073; // mem.bin

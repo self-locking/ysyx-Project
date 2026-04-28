@@ -151,6 +151,13 @@ config ITRACE_COND
   string "Only trace instructions when the condition is true"
   default "true"
 
+config IRINGBUF
+  depends on ITRACE
+  bool "Enable Instruction Ring Buffer"
+  default y
+  help
+    Maintain a circular buffer of recently executed instructions. 
+    Highlight the wrong instruction.
 
 config DIFFTEST
   depends on TARGET_NATIVE_ELF

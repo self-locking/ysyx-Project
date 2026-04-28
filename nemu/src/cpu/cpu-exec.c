@@ -33,6 +33,12 @@ uint64_t g_nr_guest_inst = 0; // Count the number of instructions
 static uint64_t g_timer = 0; // unit: us
 static bool g_print_step = false; // 指令少于 MAX_INST_TO_PRINT 时为true
 
+#ifdef CONFIG_IRINGBUF
+static char ringbuf[16][128];
+static int cur = 0;
+static size = 16;
+#endif
+
 void device_update();
 
 bool check_watchpoint();
@@ -50,7 +56,12 @@ static void trace_and_difftest(Decode *_this, vaddr_t dnpc) {
     return;
   }
 #endif
+}
 
+static void itrace_iringbuf(Decode *_this, vaddr_t dnpc) {
+  strncpy(ringbuf[cur], _this->logbuf, 128);
+  ringbuf[cur][127] = '\0';
+  cur = (cur + 1) % size; 
 }
 
 static void exec_once(Decode *s, vaddr_t pc) {
@@ -91,6 +102,7 @@ static void execute(uint64_t n) {
     exec_once(&s, cpu.pc);
     g_nr_guest_inst ++;
     trace_and_difftest(&s, cpu.pc);
+    IFDEF(CONFIG_IRINGBUF, itrace_iringbuf(&s, cpu.pc);)
     if (nemu_state.state != NEMU_RUNNING) break;
     IFDEF(CONFIG_DEVICE, device_update());
   }
