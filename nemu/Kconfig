@@ -159,6 +159,14 @@ config IRINGBUF
     Maintain a circular buffer of recently executed instructions. 
     Highlight the wrong instruction.
 
+config MTRACE
+  depends on TRACE
+  bool "Enable memory trace"
+  default n
+  help
+    Print the memory operation.
+    Help to find out the wrong instruction.
+
 config DIFFTEST
   depends on TARGET_NATIVE_ELF
   bool "Enable differential testing"
