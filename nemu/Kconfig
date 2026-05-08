@@ -167,6 +167,13 @@ config MTRACE
     Print the memory operation.
     Help to find out the wrong instruction.
 
+config FTRACE
+  depends on TRACE
+  bool "Enable function trace"
+  default n
+  help
+    Print the function call trace.
+
 config DIFFTEST
   depends on TARGET_NATIVE_ELF
   bool "Enable differential testing"

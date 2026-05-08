@@ -19,6 +19,7 @@
 void init_monitor(int, char *[]);
 void am_init_monitor();
 void engine_start();
+void free_ftrace();
 int is_exit_status_bad();
 word_t expr(char *e, bool *success);
 
@@ -64,6 +65,10 @@ int main(int argc, char *argv[]) {
 
   /* Start engine. */
   engine_start();
+
+#ifdef CONFIG_FTRACE
+  free_ftrace();
+#endif
 
   return is_exit_status_bad();
 }

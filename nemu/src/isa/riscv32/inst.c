@@ -44,11 +44,24 @@ enum {
                      BITS(i, 11, 8) | \
                     (BITS(i, 7, 7) << 10)) << 1, 13);} while(0)
 
-static void decode_operand(Decode *s, int *rd, word_t *src1, word_t *src2, word_t *imm, int type) {
+void ftrace_call(vaddr_t pc, vaddr_t target_addr);
+void ftrace_ret(vaddr_t pc);
+
+void ftrace_check(Decode* s, int rd, int rs1) {
+  if (rd == 1) {
+    ftrace_call(s->pc, s->dnpc);
+  }
+  else if (rd == 0 && rs1 == 1)  {
+    ftrace_ret(s->pc);
+  }
+}
+
+static void decode_operand(Decode *s, int *rd, int *Rs1, word_t *src1, word_t *src2, word_t *imm, int type) {
   uint32_t i = s->isa.inst;
   int rs1 = BITS(i, 19, 15);
   int rs2 = BITS(i, 24, 20);
   *rd     = BITS(i, 11, 7);
+  *Rs1    = rs1;
   switch (type) {
     case TYPE_I: src1R();          immI(); break;
     case TYPE_U:                   immU(); break;
@@ -67,8 +80,9 @@ static int decode_exec(Decode *s) {
 #define INSTPAT_INST(s) ((s)->isa.inst)
 #define INSTPAT_MATCH(s, name, type, ... /* execute body */ ) { \
   int rd = 0; \
+  int rs1 = 0; \
   word_t src1 = 0, src2 = 0, imm = 0; \
-  decode_operand(s, &rd, &src1, &src2, &imm, concat(TYPE_, type)); \
+  decode_operand(s, &rd, &rs1, &src1, &src2, &imm, concat(TYPE_, type)); \
   /* 这里参数都准备好了，剩下执行语句放这里执行 */  \
   __VA_ARGS__ ; \
 }
@@ -114,14 +128,14 @@ static int decode_exec(Decode *s) {
   INSTPAT("0100000 ????? ????? 101 ????? 00100 11", srai   , I, R(rd) = (int32_t)src1 >> (imm & 0x1f));
   INSTPAT("0000000 ????? ????? 101 ????? 00100 11", srli   , I, R(rd) = src1 >> imm);
   INSTPAT("0000000 ????? ????? 001 ????? 00100 11", slli   , I, R(rd) = src1 << imm);
-  INSTPAT("??????? ????? ????? 000 ????? 11001 11", jalr   , I, s->dnpc = (src1 + imm) & ~1; R(rd) = s->snpc);
+  INSTPAT("??????? ????? ????? 000 ????? 11001 11", jalr   , I, s->dnpc = (src1 + imm) & ~1; R(rd) = s->snpc; IFDEF(CONFIG_FTRACE, ftrace_check(s, rd, rs1)) );
   INSTPAT("??????? ????? 00000 000 00000 00011 11", fence  , I, /* do nothing,似乎与流水线有关，暂不管 */);
 
   INSTPAT("??????? ????? ????? 000 ????? 01000 11", sb     , S, Mw(src1 + imm, 1, src2));
   INSTPAT("??????? ????? ????? 001 ????? 01000 11", sh     , S, Mw(src1 + imm, 2, src2));
   INSTPAT("??????? ????? ????? 010 ????? 01000 11", sw     , S, Mw(src1 + imm, 4, src2));
 
-  INSTPAT("??????? ????? ????? ??? ????? 11011 11", jal    , J, s->dnpc = s->pc + imm; R(rd) = s->snpc);
+  INSTPAT("??????? ????? ????? ??? ????? 11011 11", jal    , J, s->dnpc = s->pc + imm; R(rd) = s->snpc; IFDEF(CONFIG_FTRACE, ftrace_check(s, rd, -1)) );
   
   INSTPAT("??????? ????? ????? 000 ????? 11000 11", beq    , B, s->dnpc = (src1 == src2) ? s->pc + imm : s->dnpc);
   INSTPAT("??????? ????? ????? 001 ????? 11000 11", bne    , B, s->dnpc = (src1 != src2) ? s->pc + imm : s->dnpc);
