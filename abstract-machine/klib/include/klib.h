@@ -9,7 +9,8 @@
 extern "C" {
 #endif
 
-//#define __NATIVE_USE_KLIB__
+// 控制 native 下是否链接为自己的 klib
+#define __NATIVE_USE_KLIB__
 
 // string.h
 void  *memset    (void *s, int c, size_t n);
