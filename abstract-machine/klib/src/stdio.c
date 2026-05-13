@@ -96,7 +96,7 @@ int printf(const char *fmt, ...) {
       }
     }
   }
-
+  
   va_end(ap);
   return count;
 }
