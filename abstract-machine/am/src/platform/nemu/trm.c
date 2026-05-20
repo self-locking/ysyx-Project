@@ -9,6 +9,8 @@ static const char mainargs[MAINARGS_MAX_LEN] = TOSTRING(MAINARGS_PLACEHOLDER); /
 
 void putch(char ch) {
   outb(SERIAL_PORT, ch);
+  // SERIAL_PORT = (DEVICE_BASE + 0x00003f8)
+  // DEVICE_BASE = 0xa0000000
 }
 
 void halt(int code) {

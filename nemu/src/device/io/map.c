@@ -26,7 +26,7 @@ static uint8_t *p_space = NULL;
 uint8_t* new_space(int size) {
   uint8_t *p = p_space;
   // page aligned;
-  size = (size + (PAGE_SIZE - 1)) & ~PAGE_MASK;
+  size = (size + (PAGE_SIZE - 1)) & ~PAGE_MASK; // 向上取最近整页，因为硬件是按页映射的
   p_space += size;
   assert(p_space - io_space < IO_SPACE_MAX);
   return p;

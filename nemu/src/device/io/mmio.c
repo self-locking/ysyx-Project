@@ -37,10 +37,12 @@ void add_mmio_map(const char *name, paddr_t addr, void *space, uint32_t len, io_
   assert(nr_map < NR_MAP);
   paddr_t left = addr, right = addr + len - 1;
   if (in_pmem(left) || in_pmem(right)) {
+    // MMIO 区域不能和物理内存冲突
     report_mmio_overlap(name, left, right, "pmem", PMEM_LEFT, PMEM_RIGHT);
   }
   for (int i = 0; i < nr_map; i++) {
     if (left <= maps[i].high && right >= maps[i].low) {
+      // 检测设备区域是否重叠
       report_mmio_overlap(name, left, right, maps[i].name, maps[i].low, maps[i].high);
     }
   }
