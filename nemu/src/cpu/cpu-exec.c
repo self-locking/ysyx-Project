@@ -150,7 +150,8 @@ void cpu_exec(uint64_t n) {
     case NEMU_QUIT: statistic();
 
     #ifdef CONFIG_IRINGBUF
-      if (nemu_state.state == NEMU_ABORT || (nemu_state.state == NEMU_END && nemu_state.halt_ret != 0)) {
+      if (1 || nemu_state.state == NEMU_ABORT || (nemu_state.state == NEMU_END && nemu_state.halt_ret != 0)) {
+        // 程序失败才打印
         printf("<============== IRINGBUF ==============>\n");
         for(int i = 0; i < size; i++) {
           if(ringbuf[i][0] != '\0') {

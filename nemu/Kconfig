@@ -154,7 +154,7 @@ config ITRACE_COND
 config IRINGBUF
   depends on ITRACE
   bool "Enable Instruction Ring Buffer"
-  default y
+  default n
   help
     Maintain a circular buffer of recently executed instructions. 
     Highlight the wrong instruction.

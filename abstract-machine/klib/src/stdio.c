@@ -16,7 +16,91 @@ int handle_fmt(char *buf, const char *fmt, va_list ap) {
     switch(c) {
       case '%': {
         c = *fmt++;
+        int width = 0;
+        char pad_char = ' ';
+        int base = 10;
+
+        if (c == '0') {
+        pad_char = '0';
+        c = *fmt++;
+        }
+
+        while (c >= '0' && c <= '9') {
+          width = width * 10 + c - '0';
+          c = *fmt++;
+        }
+
         switch(c) {
+          case 'x':
+          case 'X':
+            base = 16;
+
+          case 'd': {
+            unsigned int u;
+            int neg = 0;
+
+            if (base == 10) {
+              int d = va_arg(ap, int);
+              if (d < 0) {
+                neg = 1;
+                u = -d;
+              } 
+              else u = d;
+            } 
+            else if (base == 16) u = va_arg(ap, unsigned int);
+
+            // 方便填充采用倒序和临时数组
+            char numbuf[32];
+            int len = 0;
+
+            if (u == 0) {
+                numbuf[len++] = '0';
+            }
+
+            while (u > 0) {
+              int digit = u % base;
+
+              if (digit < 10) {
+                  numbuf[len++] = '0' + digit;
+              } 
+              else {
+                if (c == 'x') {
+                    numbuf[len++] = 'a' + digit - 10;
+                } 
+                else numbuf[len++] = 'A' + digit - 10;
+              }
+              u /= base;
+            }
+
+            int total_len = len + neg;
+
+            // 如果是0填充，先输出负号
+            if (neg && pad_char == '0') {
+                *buf++ = '-';
+                count++;
+                neg = 0;
+            }
+
+            while (total_len < width) {
+                *buf++ = pad_char;
+                count++;
+                total_len++;
+            }
+
+            // 普通情况输出负号
+            if (neg) {
+                *buf++ = '-';
+                count++;
+            }
+
+            for (int i = len - 1; i >= 0; i--) {
+                *buf++ = numbuf[i];
+                count++;
+            }
+
+            break;
+          }
+          
           case 'c': {
             /* va_arg(ap, type) 将参数以...类型提取并指向下一个参数 */
             char ch = va_arg(ap, int); // char被提升为int
@@ -34,24 +118,6 @@ int handle_fmt(char *buf, const char *fmt, va_list ap) {
             break;
           }
 
-          case 'd': {
-            int d = va_arg(ap, int);
-            if (d < 0) {
-              *buf++ = '-';
-              count++;
-              d = -d; // 转为正数方便处理
-            }
-            int tmp = 1;
-            while (d / tmp >= 10) tmp *= 10; // 找最高位
-            while (tmp >= 1) {
-              *buf++ = d / tmp + '0';
-              count++;
-              d %= tmp;
-              tmp /= 10;
-            }
-            break;
-          }
-
           case '%': {
             *buf++ = '%';
             count++;
@@ -60,6 +126,7 @@ int handle_fmt(char *buf, const char *fmt, va_list ap) {
 
           default: {
             *buf = '\0';
+            putstr("May Bad\n");
             return -1; // 未实现或错误类型
           }
         }
