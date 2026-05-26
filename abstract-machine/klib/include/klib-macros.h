@@ -12,6 +12,10 @@
 #define _CONCAT(x, y)       x ## y
 #define CONCAT(x, y)        _CONCAT(x, y)
 
+/* 这里利用了 GNU C 扩展语法：语句表达式 Statement Expressions
+** 在 GNU C 中，用圆括号和大括号包起来的复合语句 ({ ... }) 可以被当作一个表达式来用
+** 它的规则是：整个表达式的值，等于其中最后一条语句的值
+*/
 #define putstr(s) \
   ({ for (const char *p = s; *p; p++) putch(*p); })
 
