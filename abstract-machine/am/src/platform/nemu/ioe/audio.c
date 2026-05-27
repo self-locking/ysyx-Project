@@ -9,18 +9,39 @@
 #define AUDIO_COUNT_ADDR     (AUDIO_ADDR + 0x14)
 
 void __am_audio_init() {
+  outl(AUDIO_INIT_ADDR, 1);
 }
 
 void __am_audio_config(AM_AUDIO_CONFIG_T *cfg) {
-  cfg->present = false;
+  cfg->present = true;
+  cfg->bufsize = inl(AUDIO_SBUF_SIZE_ADDR);
 }
 
 void __am_audio_ctrl(AM_AUDIO_CTRL_T *ctrl) {
+  outl(AUDIO_CHANNELS_ADDR, ctrl->channels);
+  outl(AUDIO_FREQ_ADDR, ctrl->freq);
+  outl(AUDIO_SAMPLES_ADDR, ctrl->samples);
 }
 
 void __am_audio_status(AM_AUDIO_STATUS_T *stat) {
-  stat->count = 0;
+  stat->count = inl(AUDIO_COUNT_ADDR);
 }
 
+static uint32_t sbuf_tail = 0;
+
 void __am_audio_play(AM_AUDIO_PLAY_T *ctl) {
+  uint8_t *src = (uint8_t *)ctl->buf.start;
+  uint32_t len = (uint8_t *)ctl->buf.end - src;
+  uint32_t bufsize = inl(AUDIO_SBUF_SIZE_ADDR);
+
+  // 等待有空间
+  while (inl(AUDIO_COUNT_ADDR) >= bufsize);
+
+  for (uint32_t i = 0; i < len; i++) {
+    outb(AUDIO_SBUF_ADDR + sbuf_tail, src[i]);
+    sbuf_tail = (sbuf_tail + 1) % bufsize;       // 环形推进
+
+    // outl(AUDIO_COUNT_ADDR, inl(AUDIO_COUNT_ADDR) + len); // 更新 count
+  }
+  outl(AUDIO_COUNT_ADDR, inl(AUDIO_COUNT_ADDR) + len);
 }
