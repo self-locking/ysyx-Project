@@ -51,8 +51,8 @@ void init_ftrace(const char *elf_file) {
     "Read .shstrtab error"
   );
 
-  Elf32_Shdr symtab_hdr;
-  Elf32_Shdr strtab_hdr;
+  Elf32_Shdr symtab_hdr = {0};
+  Elf32_Shdr strtab_hdr = {0};
   // 遍历寻找 .symtab 和 .strtab，前者记录索引地址，后者记录字符串地址
   for (int i = 0; i < ehdr.e_shnum; i++) {
 
