@@ -1,5 +1,6 @@
 #include <stdio.h>
 #include <cstdint>
+#include <sys/time.h> // 获取系统时间
 #include <verilated.h>
 #include "Vminirv.h"
 #include "verilated_fst_c.h"
@@ -8,12 +9,50 @@
 
 #define MAX_SIZE 0x2000000
 #define MBASE 0x20000000
+#define SERIAL_PORT 0x10000000
+#define RTC_ADDR_LOW 0x02004000
+#define RTC_ADDR_HIGH 0x02004004
 
 static int is_running = 1;
 static uint32_t pmem[MAX_SIZE];
 
+void get_program_run_time(uint32_t *low, uint32_t *high) {
+    static struct timespec start_time;
+    static int first = 1;
+    struct timespec current_time;
+    
+    clock_gettime(CLOCK_MONOTONIC, &current_time);
+
+    if (first) {
+        start_time = current_time;
+        first = 0;
+    }
+
+    uint64_t diff_sec = current_time.tv_sec - start_time.tv_sec;
+    long diff_nsec = current_time.tv_nsec - start_time.tv_nsec;
+
+    // 处理纳秒借位的情况（比如当前 100ns，启动时 200ns，不够减）
+    if (diff_nsec < 0) {
+        diff_sec  -= 1;
+        diff_nsec += 1000000000L;
+    }
+
+    uint64_t run_us = (diff_sec * 1000000ULL) + (diff_nsec / 1000);
+
+    *low  = (uint32_t)(run_us & 0xFFFFFFFFu);
+    *high = (uint32_t)((run_us >> 32) & 0xFFFFFFFFu);
+}
+
 extern "C" int pmem_read(int raddr) {
+    static uint32_t low = 0;
+    static uint32_t high = 0;
     uint32_t u_raddr = (uint32_t) raddr;
+
+    if ((u_raddr << 2) == RTC_ADDR_HIGH) {
+        get_program_run_time(&low, &high);
+        return high;
+    }
+    else if ((u_raddr << 2) == RTC_ADDR_LOW) return low;
 
     if (u_raddr < MBASE || u_raddr - MBASE >= MAX_SIZE) {
         // out of bound
@@ -26,6 +65,8 @@ extern "C" int pmem_read(int raddr) {
 extern "C" void pmem_write(int waddr, int wdata, int mask) {
     uint8_t data = uint8_t(wdata & 0xFF);
     uint32_t paddr = waddr - MBASE;
+    if ((waddr << 2) == SERIAL_PORT) {putchar(data); return;};
+    
     switch (mask)
     {
     case 0:
