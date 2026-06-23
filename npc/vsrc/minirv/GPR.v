@@ -1,4 +1,3 @@
-// import "DPI-C" function void regPrint(input bit [31:0] regs[16]);
 module GPR #(ADDR_WIDTH = 5, DATA_WIDTH = 32) (
     input wire clk,
     input wire rst,
@@ -14,9 +13,6 @@ module GPR #(ADDR_WIDTH = 5, DATA_WIDTH = 32) (
 
 reg [DATA_WIDTH-1:0] rf [2**(ADDR_WIDTH-1)-1:0];
 
-bit [DATA_WIDTH-1:0] data [2**(ADDR_WIDTH-1)-1:0];
-assign data = rf;
-
 integer i;
 
 always @(posedge clk) begin
@@ -28,7 +24,6 @@ always @(posedge clk) begin
     else if (wen) begin
         rf[waddr] <= wdata;
     end 
-    // regPrint(data);
 end
 
 assign src1 = rf[addr1];

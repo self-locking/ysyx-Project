@@ -6,6 +6,7 @@
 #include "verilated_fst_c.h"
 #include "svdpi.h"
 #include "Vminirv__Dpi.h"
+#include "Vminirv___024root.h" // 用于访问寄存器
 
 #define MAX_SIZE 0x2000000
 #define MBASE 0x20000000
@@ -15,6 +16,68 @@
 
 static int is_running = 1;
 static uint32_t pmem[MAX_SIZE];
+
+Vminirv* top = new Vminirv;
+
+// 指令执行（单周期）
+void cpu_exec(uint64_t n) {
+    while(n--) {
+        top->clk = 0;
+        top->eval();
+        top->clk = 1;
+        top->eval();
+    }
+}
+
+static char line[256];
+
+static char* rl_gets() {
+    printf("(npc) ");
+
+    if (fgets(line, sizeof(line), stdin) == NULL)
+        return NULL;
+
+    line[strcspn(line, "\n")] = '\0';
+
+    return line;
+}
+
+static int cmd_q(char *args) {
+  is_running = 0;
+  return 0;
+}
+
+static int cmd_c(char *args) {
+  while (is_running) cpu_exec(1);
+  return 0;
+}
+
+static int cmd_si(char *args) {
+	int n = 1;
+
+	if (args != NULL) {
+		n = atoi(args);
+	}
+	cpu_exec(n);
+
+	return 0;
+}
+
+static int cmd_info(char *args);
+
+static int cmd_x(char *args);
+
+// sdb指令
+static struct {
+    const char *name;
+    int (*handler) (char *);
+} cmd_table [] = {
+    {"c", cmd_c},
+    {"si", cmd_si},
+    {"info", cmd_info},
+    {"x", cmd_x},
+    {"q", cmd_q},
+};
 
 void get_program_run_time(uint32_t *low, uint32_t *high) {
     static struct timespec start_time;
@@ -99,13 +162,6 @@ extern "C" void halt (int a) {
     return;
 }
 
-// // 用于debug
-// extern "C" void regPrint(const svBitVecVal* regs) {
-//     for(int i = 0; i < 16; i++) {
-//         printf("x%d: %08x\n", i, (uint32_t)regs[i]);
-//     }
-// }
-
 // 用于采样
 void step_and_dump(Vminirv* top, VerilatedFstC* tfp, VerilatedContext* contextp) {
     top->eval();
@@ -113,17 +169,60 @@ void step_and_dump(Vminirv* top, VerilatedFstC* tfp, VerilatedContext* contextp)
     tfp->dump(contextp->time());
 }
 
+static int cmd_info(char *args) {
+    if (args == NULL) {
+		printf("Please input the subcmd\n");
+	}
+	else if (strcmp(args, "r") == 0) {
+        for(int i = 0; i < 16; i++) {
+            printf("x%02d = 0x%x\n", i, top->rootp->minirv__DOT__gpr7__DOT__rf[i]);
+        }
+	}
+    return 0;
+}
+
+static int cmd_x(char *args) {
+    int n = 0;
+    uint32_t addr = 0;
+
+    if (args == NULL) {
+        printf("Unknown subcmd\n");
+        return 0;
+    }
+
+    // 解析两个参数
+    int ret = sscanf(args, "%d %x", &n, &addr);
+    if (ret != 2 || n <= 0) {
+        printf("Unknown subcmd\n");
+        return 0;
+    }
+
+    for (int i = 0; i < n; i++) {
+        uint32_t cur = addr / 4;
+
+        if (cur < MBASE || cur - MBASE >= MAX_SIZE) {
+            printf("out of bound\n");
+            continue;
+        }
+
+        uint32_t data = pmem[(cur - MBASE)];
+        printf("%08x: %08x\n", addr, data);
+        addr += 4;
+    }
+
+    return 0;
+}
+
 int main (int argc, char **argv) {
-    
-    VerilatedContext *contextp = new VerilatedContext;// contextp用来保存仿真的时间
-    contextp->commandArgs(argc, argv);                // 传递参数给verilator
-    Vminirv* top = new Vminirv{contextp};
+    // VerilatedContext *contextp = new VerilatedContext;// contextp用来保存仿真的时间
+    // contextp->commandArgs(argc, argv);                // 传递参数给verilator
+    // Vminirv* top = new Vminirv{contextp};
     
     //打开波形
-	VerilatedFstC *tfp = new VerilatedFstC; // 创建一个波形文件指针
-	contextp->traceEverOn(true);            // 启用跟踪
-	top->trace(tfp, 99);                    // 采样深度为99(是否采集子模块等)
-	tfp->open("wave_logs/minirv_wave.fst");    // 写入波形文件，文件地址和文件名可以自定义
+	// VerilatedFstC *tfp = new VerilatedFstC; // 创建一个波形文件指针
+	// contextp->traceEverOn(true);            // 启用跟踪
+	// top->trace(tfp, 99);                    // 采样深度为99(是否采集子模块等)
+	// tfp->open("wave_logs/minirv_wave.fst");    // 写入波形文件，文件地址和文件名可以自定义
 
     // 写入数据
     // const char *binfile = "./resource/sum.bin";
@@ -149,30 +248,49 @@ int main (int argc, char **argv) {
     // 初始化信号并稳定路
 	top->rst = 1;
     top->clk = 0;
-    step_and_dump(top, tfp, contextp);
+    // step_and_dump(top, tfp, contextp);
+    top->eval();
     top->clk = 1;
-    step_and_dump(top, tfp, contextp);
+    // step_and_dump(top, tfp, contextp);
+    top->eval();
 	top->rst = 0;
 
-    // int cycle = 0; 
     while (is_running) {
-        top->clk = 0;
-        step_and_dump(top, tfp, contextp);
-        top->clk = 1;
-        step_and_dump(top, tfp, contextp);
-        // printf("%08x\n", top->cp-4);
-        // cycle++;
+        // top->clk = 0;
+        // step_and_dump(top, tfp, contextp);
+        // top->eval();
+        // top->clk = 1;
+        // step_and_dump(top, tfp, contextp);
+        // top->eval();
+        
+        for (char *str; is_running && ((str = rl_gets()) != NULL); ) {
+            char *str_end = str + strlen(str);
+
+            char *cmd = strtok(str, " ");
+            if (cmd == NULL) { continue; }
+
+            char *args = cmd + strlen(cmd) + 1;
+            if (args >= str_end) {
+                args = NULL;
+            }
+
+            int i;
+            for (i = 0; i < 5; i ++) {
+                if (strcmp(cmd, cmd_table[i].name) == 0) {
+                    if (cmd_table[i].handler(args) < 0) { printf("Wrong\n"); return 0; }
+                    break;
+                }
+            }
+        }
     }
 
-    // printf("%d\n", cycle);
-
 	// 清理top仿真模型，并销毁相关指针，并将指针变为空指针
-	tfp->close();  // 关闭波形文件
+	// tfp->close();  // 关闭波形文件
 	top->final();  // 让Verilator进行清理工作
 	delete top;
 	top = nullptr;
-	delete contextp;
-	contextp = nullptr;
+	// delete contextp;
+	// contextp = nullptr;
 
 	return 0;
 }
