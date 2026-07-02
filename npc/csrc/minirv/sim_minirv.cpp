@@ -1,12 +1,59 @@
 #include <stdio.h>
 #include <cstdint>
+#include <readline/readline.h>
 #include <sys/time.h> // 获取系统时间
 #include <verilated.h>
 #include "Vminirv.h"
 #include "verilated_fst_c.h"
 #include "svdpi.h"
 #include "Vminirv__Dpi.h"
-#include "Vminirv___024root.h" // 用于访问寄存器
+#include "Vminirv___024root.h" // 用于访问寄存器和PC的值
+#include "ftrace.h"
+
+#ifdef CONFIG_ITRACE
+#include <capstone/capstone.h> // 用于反汇编
+csh capstone_handle;
+FILE *itrace_log_fp = nullptr;
+
+void init_disasm() {
+    if (cs_open(CS_ARCH_RISCV, CS_MODE_RISCV32, &capstone_handle) != CS_ERR_OK) {
+        printf("Error: Failed to initialize Capstone disassembler!\n");
+        exit(1);
+    }
+}
+
+// 反汇编并记录一条指令
+extern "C" void disassemble_and_log(int pc, int insn) {
+    cs_insn *insn_decompressed;
+    // 将 32 位指令整型转为字节数组
+    uint8_t code[4];
+    code[0] = insn & 0xFF;
+    code[1] = (insn >> 8) & 0xFF;
+    code[2] = (insn >> 16) & 0xFF;
+    code[3] = (insn >> 24) & 0xFF;
+
+    // 执行反汇编
+    size_t count = cs_disasm(capstone_handle, code, 4, pc, 0, &insn_decompressed);
+    if (count > 0) {
+        if (itrace_log_fp != nullptr) {
+            fprintf(itrace_log_fp, "0x%08x: 0x%08x   %s\t%s\n", 
+                    pc, insn, insn_decompressed[0].mnemonic, insn_decompressed[0].op_str);
+        }
+        // 释放内存
+        cs_free(insn_decompressed, 1);
+    } else {
+        assert(0 && "Failed to disassemble instruction");
+    }
+}
+
+// 在仿真结束时释放 Capstone 资源
+void free_disasm() {
+    cs_close(&capstone_handle);
+}
+
+#endif
+
+//#define WAVE_GEN
 
 #define MAX_SIZE 0x2000000
 #define MBASE 0x20000000
@@ -14,32 +61,56 @@
 #define RTC_ADDR_LOW 0x02004000
 #define RTC_ADDR_HIGH 0x02004004
 
+
+
 static int is_running = 1;
+static int cpu_running = 1;
 static uint32_t pmem[MAX_SIZE];
 
-Vminirv* top = new Vminirv;
+static Vminirv* top = new Vminirv;
+#ifdef WAVE_GEN
+static VerilatedContext *contextp = nullptr;
+static VerilatedFstC *tfp = nullptr;
+#endif
+
+// 用于更新和采样
+void step_and_dump() {
+    top->eval();
+#ifdef WAVE_GEN
+    contextp->timeInc(1);
+    tfp->dump(contextp->time());
+#endif
+}
 
 // 指令执行（单周期）
 void cpu_exec(uint64_t n) {
-    while(n--) {
+    int i = 0;
+    if (n <= 10 && n > 0) i = 1;
+    while(n-- && cpu_running) {
+        if(i) {
+            uint32_t pc = top->PC;
+            uint32_t inst = pmem[(pc >> 2) - MBASE];
+            printf("0x%08x: 0x%08x\n", pc, inst);
+        }
         top->clk = 0;
-        top->eval();
+        step_and_dump();
         top->clk = 1;
-        top->eval();
+        step_and_dump();
     }
 }
 
-static char line[256];
-
+/* We use the `readline' library to provide more flexibility to read from stdin. */
 static char* rl_gets() {
-    printf("(npc) ");
+  static char *line_read = NULL;
 
-    if (fgets(line, sizeof(line), stdin) == NULL)
-        return NULL;
+  if (line_read) {
+    free(line_read);
+    line_read = NULL;
+  }
+  line_read = readline("(npc) ");
 
-    line[strcspn(line, "\n")] = '\0';
+  return line_read;
 
-    return line;
 }
 
 static int cmd_q(char *args) {
@@ -48,19 +119,28 @@ static int cmd_q(char *args) {
 }
 
 static int cmd_c(char *args) {
-  while (is_running) cpu_exec(1);
-  return 0;
+    if (!cpu_running) {
+        printf("Program has terminated.\n");
+        return 0;
+    }
+    cpu_exec(-1);
+
+    return 0;
 }
 
 static int cmd_si(char *args) {
-	int n = 1;
+    if (!cpu_running) {
+        printf("Program has terminated.\n");
+        return 0;
+    }
+    
+    int n = 1;
+    if (args != NULL) {
+        n = atoi(args);
+    }
+    cpu_exec(n);
 
-	if (args != NULL) {
-		n = atoi(args);
-	}
-	cpu_exec(n);
-
-	return 0;
+    return 0;
 }
 
 static int cmd_info(char *args);
@@ -83,9 +163,8 @@ void get_program_run_time(uint32_t *low, uint32_t *high) {
     static struct timespec start_time;
     static int first = 1;
     struct timespec current_time;
-    
+   
     clock_gettime(CLOCK_MONOTONIC, &current_time);
-
     if (first) {
         start_time = current_time;
         first = 0;
@@ -99,17 +178,20 @@ void get_program_run_time(uint32_t *low, uint32_t *high) {
         diff_sec  -= 1;
         diff_nsec += 1000000000L;
     }
-
+   
     uint64_t run_us = (diff_sec * 1000000ULL) + (diff_nsec / 1000);
-
     *low  = (uint32_t)(run_us & 0xFFFFFFFFu);
     *high = (uint32_t)((run_us >> 32) & 0xFFFFFFFFu);
 }
 
-extern "C" int pmem_read(int raddr) {
+extern "C" int pmem_read(int raddr, int s) {
     static uint32_t low = 0;
     static uint32_t high = 0;
     uint32_t u_raddr = (uint32_t) raddr;
+
+#ifdef CONFIG_MTRACE
+    if (s) printf("0x%08x:[Read: 0x%08x]\n", top->PC, u_raddr);
+#endif
 
     if ((u_raddr << 2) == RTC_ADDR_HIGH) {
         get_program_run_time(&low, &high);
@@ -128,8 +210,12 @@ extern "C" int pmem_read(int raddr) {
 extern "C" void pmem_write(int waddr, int wdata, int mask) {
     uint8_t data = uint8_t(wdata & 0xFF);
     uint32_t paddr = waddr - MBASE;
+
+#ifdef CONFIG_MTRACE
+    printf("0x%08x: Write:%08x-->[0x%08x], mask=%d]\n", top->PC, wdata, waddr, mask);
+#endif
+
     if ((waddr << 2) == SERIAL_PORT) {putchar(data); return;};
-    
     switch (mask)
     {
     case 0:
@@ -141,10 +227,10 @@ extern "C" void pmem_write(int waddr, int wdata, int mask) {
     case 2:
         pmem[paddr] = (pmem[paddr] & ~0x0000FF00) | (data << 8);
         break;
-    case 3:
+    case 4:
         pmem[paddr] = (pmem[paddr] & ~0x00FF0000) |(data << 16);
         break;
-    case 4:
+    case 8:
         pmem[paddr] = (pmem[paddr] & ~0xFF000000) | (data << 24);
         break;
     default:
@@ -154,7 +240,7 @@ extern "C" void pmem_write(int waddr, int wdata, int mask) {
 
 // ebreak实现
 extern "C" void halt (int a) {
-    is_running = 0;
+    cpu_running = 0;
     if (a) {
         printf("\n\33[1;31mHIT BAD TRAP\33[0m\n");
     }
@@ -162,22 +248,15 @@ extern "C" void halt (int a) {
     return;
 }
 
-// 用于采样
-void step_and_dump(Vminirv* top, VerilatedFstC* tfp, VerilatedContext* contextp) {
-    top->eval();
-    contextp->timeInc(1);
-    tfp->dump(contextp->time());
-}
-
 static int cmd_info(char *args) {
     if (args == NULL) {
-		printf("Please input the subcmd\n");
-	}
-	else if (strcmp(args, "r") == 0) {
+        printf("Please input the subcmd\n");
+    }
+    else if (strcmp(args, "r") == 0) {
         for(int i = 0; i < 16; i++) {
             printf("x%02d = 0x%x\n", i, top->rootp->minirv__DOT__gpr7__DOT__rf[i]);
         }
-	}
+    }
     return 0;
 }
 
@@ -199,7 +278,6 @@ static int cmd_x(char *args) {
 
     for (int i = 0; i < n; i++) {
         uint32_t cur = addr / 4;
-
         if (cur < MBASE || cur - MBASE >= MAX_SIZE) {
             printf("out of bound\n");
             continue;
@@ -214,24 +292,34 @@ static int cmd_x(char *args) {
 }
 
 int main (int argc, char **argv) {
-    // VerilatedContext *contextp = new VerilatedContext;// contextp用来保存仿真的时间
-    // contextp->commandArgs(argc, argv);                // 传递参数给verilator
-    // Vminirv* top = new Vminirv{contextp};
-    
-    //打开波形
-	// VerilatedFstC *tfp = new VerilatedFstC; // 创建一个波形文件指针
-	// contextp->traceEverOn(true);            // 启用跟踪
-	// top->trace(tfp, 99);                    // 采样深度为99(是否采集子模块等)
-	// tfp->open("wave_logs/minirv_wave.fst");    // 写入波形文件，文件地址和文件名可以自定义
+    /*====================== 初始化disasm =====================*/
+#ifdef CONFIG_ITRACE
+    init_disasm();
+    itrace_log_fp = fopen("npc_log.txt", "w");
+    if (itrace_log_fp == nullptr) {
+        perror("Error opening itrace.log");
+        return 1;
+    }
+#endif
 
-    // 写入数据
-    // const char *binfile = "./resource/sum.bin";
+    /*====================== 打开波形 =====================*/
+#ifdef WAVE_GEN
+    contextp = new VerilatedContext;        // contextp用来保存仿真的时间
+    contextp->commandArgs(argc, argv);      // 传递参数给verilator
+    top = new Vminirv{contextp};
+
+    tfp = new VerilatedFstC;                // 创建一个波形文件指针
+    contextp->traceEverOn(true);            // 启用跟踪
+    top->trace(tfp, 99);                    // 采样深度为99(是否采集子模块等)
+    tfp->open("wave_logs/minirv_wave.fst"); // 写入波形文件，文件地址和文件名可以自定义
+#endif
+
+    /*====================== 写入数据 =====================*/
     const char *binfile = argc > 1 ? argv[1] : nullptr;
     if (binfile == nullptr) {
         perror("\33[1;31mLack of binfile name\33[0m\n");
         return 1;
     }
-
 
     FILE *fp = fopen(binfile, "rb");
     if (fp == nullptr) {
@@ -242,31 +330,24 @@ int main (int argc, char **argv) {
     size_t n = fread(pmem, sizeof(uint32_t), MAX_SIZE, fp);
     fclose(fp);
 
-    // pmem[0x486] = 0x100073; // mem.bin
-    // pmem[0x89] = 0x100073; // sum.bin
+    /*====================== 初始化信号并稳定电路 =====================*/
+    top->rst = 1;
 
-    // 初始化信号并稳定路
-	top->rst = 1;
-    top->clk = 0;
-    // step_and_dump(top, tfp, contextp);
-    top->eval();
-    top->clk = 1;
-    // step_and_dump(top, tfp, contextp);
-    top->eval();
-	top->rst = 0;
+    for (int i = 0; i < 10; i++) {
+        top->clk = 0;
+        step_and_dump();
+        top->clk = 1;
+        step_and_dump();
+    }
 
-    while (is_running) {
-        // top->clk = 0;
-        // step_and_dump(top, tfp, contextp);
-        // top->eval();
-        // top->clk = 1;
-        // step_and_dump(top, tfp, contextp);
-        // top->eval();
-        
+    top->rst = 0;
+
+    /*====================== 运行 =====================*/
+    while (is_running) {  
         for (char *str; is_running && ((str = rl_gets()) != NULL); ) {
             char *str_end = str + strlen(str);
-
             char *cmd = strtok(str, " ");
+
             if (cmd == NULL) { continue; }
 
             char *args = cmd + strlen(cmd) + 1;
@@ -281,17 +362,28 @@ int main (int argc, char **argv) {
                     break;
                 }
             }
+            if (i == 5)  printf("Unknown command '%s'\n", cmd);
         }
     }
 
-	// 清理top仿真模型，并销毁相关指针，并将指针变为空指针
-	// tfp->close();  // 关闭波形文件
-	top->final();  // 让Verilator进行清理工作
-	delete top;
-	top = nullptr;
-	// delete contextp;
-	// contextp = nullptr;
+    /*====================== 清理 =====================*/
+    top->final();  // 让Verilator进行清理工作
+    delete top;
+    top = nullptr;
 
-	return 0;
+#ifdef WAVE_GEN
+    tfp->close();
+    delete contextp;
+    contextp = nullptr;
+#endif
+
+#ifdef CONFIG_ITRACE
+    free_disasm();
+    if (itrace_log_fp != nullptr) {
+        fclose(itrace_log_fp);
+        itrace_log_fp = nullptr;
+    }
+#endif
+
+    return 0;
 }
-

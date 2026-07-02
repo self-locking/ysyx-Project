@@ -10,6 +10,7 @@ typedef struct {
 static Symbol *symtab = NULL;
 static int nr_sym = 0;
 static int depth = 0;
+static int enable_ftrace = 0;
 
 void init_ftrace(const char *elf_file) {
   if (elf_file == NULL) return;
@@ -81,7 +82,7 @@ void init_ftrace(const char *elf_file) {
   fseek(fp, symtab_hdr.sh_offset, SEEK_SET);
   Assert(
     fread(syms, sizeof(Elf32_Sym), sym_count, fp) == sym_count, 
-    "Read .strtab error"
+    "Read .symtab error"
   );
 
   symtab = malloc(sizeof(Symbol) * sym_count);
@@ -101,7 +102,8 @@ void init_ftrace(const char *elf_file) {
     nr_sym++;
   }
 
-  printf("test: %s\n", elf_file);
+  enable_ftrace = 1;
+  // printf("test: %s\n", elf_file);
   free(shdrs);
   free(shstrtab);
   free(strtab);
@@ -120,6 +122,7 @@ const char* find_func_name(vaddr_t addr) {
 }
 
 void ftrace_call(vaddr_t pc, vaddr_t target_addr) {
+  if (!enable_ftrace) return;
   const char *func_name = find_func_name(target_addr);
   printf("0x%08x: ",pc);
   for(int i = 0; i < depth; i++) printf(" ");
@@ -128,6 +131,7 @@ void ftrace_call(vaddr_t pc, vaddr_t target_addr) {
 }
 
 void ftrace_ret(vaddr_t pc) {
+  if (!enable_ftrace) return;
   depth--;
   const char *func_name = find_func_name(pc);
   printf("0x%08x: ",pc);

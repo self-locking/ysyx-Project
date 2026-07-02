@@ -1,3 +1,5 @@
+import "DPI-C" function int pmem_read(input int raddr, input int s);
+import "DPI-C" function void pmem_write(input int waddr, input int wdata, input int mask);
 module minirv (
     input wire clk,
     input wire rst,
@@ -35,7 +37,6 @@ wire ram_ren;
 wire [31:0] raddr;
 wire [31:0] waddr;
 wire [31:0] ram_rdata;
-wire [31:0] ram_inst;
 
 /*============ WBU ==============*/
 wire [1:0] wbu_op;
@@ -51,12 +52,11 @@ wire [31:0] a0;
 
 IFU ifu1 (
     .clk        (clk        ),
-    .rst        (rst        ),
-    .inst_i     (ram_inst   ),
-    .pc_o       (pc         ),
-    .inst_o     (inst       ),    
+    .rst        (rst        ),   
     .jump       (jump       ),
     .jump_pc    (jump_pc    ),
+    .pc_o       (pc         ),
+    .inst       (inst       ), 
     .snpc       (snpc       )
 );
 
@@ -109,15 +109,13 @@ LSU lsu4 (
 
 RAM ram5 (
     .clk        (clk        ),
-    .pc         (pc         ),
     .raddr      (raddr      ),
     .ren        (ram_ren    ),
     .waddr      (waddr      ),
     .wen        (ram_wen    ),
     .wdata      (lsu_wdata  ),
     .inst_sb    (inst_sb    ),
-    .rdata      (ram_rdata  ),
-    .inst       (ram_inst   )
+    .rdata      (ram_rdata  )
 );
 
 WBU wbu6 (
@@ -143,4 +141,3 @@ GPR gpr7 (
 assign PC = pc;
 
 endmodule
-
