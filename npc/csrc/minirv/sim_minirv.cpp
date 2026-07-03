@@ -9,6 +9,7 @@
 #include "Vminirv__Dpi.h"
 #include "Vminirv___024root.h" // 用于访问寄存器和PC的值
 #include "ftrace.h"
+#include "difftest.h"
 
 #ifdef CONFIG_ITRACE
 #include <capstone/capstone.h> // 用于反汇编
@@ -82,6 +83,16 @@ void step_and_dump() {
 #endif
 }
 
+// 获取 npc 的状态
+void get_npc_cpu(CPU_state *cpu) {
+    for (int i = 0; i < 16; i++) {
+        cpu->gpr[i] = top->rootp->minirv__DOT__gpr7__DOT__rf[i];
+    }
+    for (int i = 16; i < 32; i++) cpu->gpr[i] = 0;
+
+    cpu->pc = top->PC;
+}
+
 // 指令执行（单周期）
 void cpu_exec(uint64_t n) {
     int i = 0;
@@ -96,6 +107,10 @@ void cpu_exec(uint64_t n) {
         step_and_dump();
         top->clk = 1;
         step_and_dump();
+
+        CPU_state npc_cpu;
+        get_npc_cpu(&npc_cpu);
+        difftest_step(&npc_cpu);
     }
 }
 
@@ -302,6 +317,12 @@ int main (int argc, char **argv) {
     }
 #endif
 
+    /*====================== 初始化ftrace =====================*/
+#ifdef CONFIG_FTRACE
+const char *elf_file = (argc > 2) ? argv[2] : nullptr;
+    init_ftrace(elf_file);
+#endif
+
     /*====================== 打开波形 =====================*/
 #ifdef WAVE_GEN
     contextp = new VerilatedContext;        // contextp用来保存仿真的时间
@@ -327,8 +348,12 @@ int main (int argc, char **argv) {
         return 1;
     }
 
-    size_t n = fread(pmem, sizeof(uint32_t), MAX_SIZE, fp);
+    size_t n = fread(pmem, 1, MAX_SIZE * sizeof(uint32_t), fp);
     fclose(fp);
+   
+    CPU_state npc_cpu;
+    get_npc_cpu(&npc_cpu);
+    init_difftest("../nemu/build/riscv32-nemu-interpreter-so", pmem, n, &npc_cpu);
 
     /*====================== 初始化信号并稳定电路 =====================*/
     top->rst = 1;
@@ -384,6 +409,10 @@ int main (int argc, char **argv) {
         itrace_log_fp = nullptr;
     }
 #endif
+
+#ifdef CONFIG_FTRACE
+    free_ftrace();
+#endif  
 
     return 0;
 }

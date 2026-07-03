@@ -9,8 +9,8 @@ void free_ftrace(void);
 
 // 声明 DPI-C 函数，防止编译器警告
 extern "C" {
-    void ftrace_call(uint32_t pc, uint32_t target_addr);
-    void ftrace_ret(uint32_t pc);
+    void ftrace_call(int pc, int target_addr);
+    void ftrace_ret(int pc);
 }
 
 #endif

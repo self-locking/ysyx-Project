@@ -138,6 +138,18 @@ GPR gpr7 (
     .a0         (a0         )
 );
 
+`ifdef FTRACE
+import "DPI-C" function void ftrace_call(int pc, int target_addr);
+import "DPI-C" function void ftrace_ret(int pc);
+
+always @(posedge clk) begin
+    if (jump) begin
+        if (rd_addr == 5'd1) ftrace_call(pc, jump_pc);
+        else if (rd_addr == 5'd0 && rs1_addr == 5'd1) ftrace_ret(pc);
+    end
+end
+`endif
+
 assign PC = pc;
 
 endmodule

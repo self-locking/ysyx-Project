@@ -11,7 +11,7 @@ IMG             ?=                               # 二进制文件 (.bin)
 # ==========================================================
 CONFIG_ITRACE ?= n
 CONFIG_MTRACE ?= n
-CONFIG_FTRACE ?= y
+CONFIG_FTRACE ?= n
 # ==========================================================
 
 # 如果传入了 IMG (xxx.bin)，通过 patsubst 将其后缀替换为 .elf 
@@ -34,6 +34,9 @@ sim: $(SIM_BIN)
 
 SIM_CFLAGS  := -I$(NEMU_HOME)/tools/capstone/repo/include
 SIM_LDFLAGS := -lreadline
+
+SIM_LDFLAGS += -ldl
+SIM_CPPS += csrc/minirv/difftest.cpp
 
 # 根据选择追加参数
 ifeq ($(CONFIG_ITRACE), y)

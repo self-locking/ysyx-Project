@@ -115,7 +115,7 @@ const char* find_func_name(uint32_t addr) {
   return "???";
 }
 
-extern "C" void ftrace_call(uint32_t pc, uint32_t target_addr) {
+extern "C" void ftrace_call(int pc, int target_addr) {
   if (!enable_ftrace) return;
   const char *func_name = find_func_name(target_addr);
   printf("0x%08x: ", pc);
@@ -124,7 +124,7 @@ extern "C" void ftrace_call(uint32_t pc, uint32_t target_addr) {
   depth++;
 }
 
-extern "C" void ftrace_ret(uint32_t pc) {
+extern "C" void ftrace_ret(int pc) {
   if (!enable_ftrace) return;
   depth--;
   if (depth < 0) depth = 0; // 安全边界保护
