@@ -9,9 +9,10 @@ WAVE_FILE       := $(WAVE_DIR)/minirv_wave.fst  # 波形文件路径
 IMG             ?=                               # 二进制文件 (.bin)
 
 # ==========================================================
-CONFIG_ITRACE ?= n
-CONFIG_MTRACE ?= n
-CONFIG_FTRACE ?= n
+CONFIG_ITRACE 	?= y
+CONFIG_MTRACE 	?= n
+CONFIG_FTRACE 	?= n
+CONFIG_DIFFTEST ?= y
 # ==========================================================
 
 # 如果传入了 IMG (xxx.bin)，通过 patsubst 将其后缀替换为 .elf 
@@ -35,8 +36,11 @@ sim: $(SIM_BIN)
 SIM_CFLAGS  := -I$(NEMU_HOME)/tools/capstone/repo/include
 SIM_LDFLAGS := -lreadline
 
-SIM_LDFLAGS += -ldl
-SIM_CPPS += csrc/minirv/difftest.cpp
+ifeq ($(CONFIG_DIFFTEST), y)
+	SIM_CFLAGS += -DCONFIG_DIFFTEST
+	SIM_LDFLAGS += -ldl
+	SIM_CPPS += csrc/minirv/difftest.cpp
+endif
 
 # 根据选择追加参数
 ifeq ($(CONFIG_ITRACE), y)

@@ -7,8 +7,7 @@ module IFU (
     input wire jump,
     input wire [31:0] jump_pc,
     output wire [31:0] pc_o,
-    output wire [31:0] inst,
-    output wire [31:0] snpc
+    output wire [31:0] inst
 );
 
 reg [31:0] pc;
@@ -25,6 +24,5 @@ end
 
 assign pc_o = pc;
 assign inst = pmem_read(pc >> 2, 0);
-assign snpc = pc + 4;
 
 endmodule

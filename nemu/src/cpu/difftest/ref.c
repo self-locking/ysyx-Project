@@ -38,8 +38,7 @@ __EXPORT void difftest_regcpy(void *dut, bool direction) {
 }
 
 __EXPORT void difftest_exec(uint64_t n) {
-  printf("0x%08x: 0x%08x\n", cpu.pc, *(uint32_t *)guest_to_host(cpu.pc));
-  // cpu_exec(n);
+  cpu_exec(n);
 }
 
 __EXPORT void difftest_raise_intr(word_t NO) {

@@ -18,7 +18,7 @@ wire [31:0] data1;
 wire [31:0] data2;
 wire [31:0] data3;
 wire [31:0] data4;
-wire [4:0] exu_op; // can add more bits
+wire [9:0] exu_op; // can add more bits
 wire [4:0] rd_addr;
 
 /*============ EXU ==============*/
@@ -56,16 +56,14 @@ IFU ifu1 (
     .jump       (jump       ),
     .jump_pc    (jump_pc    ),
     .pc_o       (pc         ),
-    .inst       (inst       ), 
-    .snpc       (snpc       )
+    .inst       (inst       )
 );
 
 IDU idu2 (
     .src1       (src1       ),
     .src2       (src2       ),
-    .inst_i     (inst       ),
-    .pc         (pc         ),
-    .snpc       (snpc       ),
+    .inst       (inst       ),
+    .pc         (pc          ),
     .rs1_addr   (rs1_addr   ),
     .rs2_addr   (rs2_addr   ),
     .rd_addr    (rd_addr    ),
@@ -81,6 +79,7 @@ IDU idu2 (
 
 EXU exu3 (
     .clk        (clk        ),
+    .pc         (pc         ),
     .exu_op     (exu_op     ),
     .data1      (data1      ),
     .data2      (data2      ),

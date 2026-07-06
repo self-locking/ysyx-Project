@@ -45,20 +45,19 @@ void difftest_step(CPU_state *npc_cpu) {
     ref_difftest_exec(1);
 
     ref_difftest_regcpy(&ref_cpu, DIFFTEST_TO_DUT);
-
     checkregs(&ref_cpu, npc_cpu);
 }
 
 void checkregs(CPU_state *ref, CPU_state *dut) {
-    // if (ref->pc == dut->pc) {
-    //     for (int i = 0; i < 16; i++) { // 目前只有16个reg
-    //         if (ref->gpr[i] != dut->gpr[i]) {
-    //             printf("x%d is different: ref: 0x%08x, dut: 0x%08x\n", i, ref->gpr[i], dut->gpr[i]);
-    //             assert(0);
-    //         }
-    //     }
-    // } else {
-    //     printf("PC is different: ref: 0x%08x, dut: 0x%08x\n", ref->pc, dut->pc);
-    //     assert(0);
-    // }
+    if (ref->pc == dut->pc) {
+        for (int i = 0; i < 16; i++) { // 目前只有16个reg
+            if (ref->gpr[i] != dut->gpr[i]) {
+                printf("x%d is different: ref: 0x%08x, dut: 0x%08x\n", i, ref->gpr[i], dut->gpr[i]);
+                assert(0);
+            }
+        }
+    } else {
+        printf("PC is different: ref: 0x%08x, dut: 0x%08x\n", ref->pc, dut->pc);
+        assert(0);
+    }
 }

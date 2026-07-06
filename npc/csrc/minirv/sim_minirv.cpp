@@ -39,6 +39,9 @@ extern "C" void disassemble_and_log(int pc, int insn) {
         if (itrace_log_fp != nullptr) {
             fprintf(itrace_log_fp, "0x%08x: 0x%08x   %s\t%s\n", 
                     pc, insn, insn_decompressed[0].mnemonic, insn_decompressed[0].op_str);
+
+            fflush(itrace_log_fp); // 刷新缓冲区
+        
         }
         // 释放内存
         cs_free(insn_decompressed, 1);
@@ -54,7 +57,7 @@ void free_disasm() {
 
 #endif
 
-//#define WAVE_GEN
+// #define WAVE_GEN
 
 #define MAX_SIZE 0x2000000
 #define MBASE 0x20000000
@@ -69,6 +72,7 @@ static int cpu_running = 1;
 static uint32_t pmem[MAX_SIZE];
 
 static Vminirv* top = new Vminirv;
+
 #ifdef WAVE_GEN
 static VerilatedContext *contextp = nullptr;
 static VerilatedFstC *tfp = nullptr;
@@ -108,9 +112,11 @@ void cpu_exec(uint64_t n) {
         top->clk = 1;
         step_and_dump();
 
+#ifdef CONFIG_DIFFTEST
         CPU_state npc_cpu;
         get_npc_cpu(&npc_cpu);
         difftest_step(&npc_cpu);
+#endif
     }
 }
 
@@ -158,6 +164,13 @@ static int cmd_si(char *args) {
     return 0;
 }
 
+static int cmd_pc(char *args) {
+    uint32_t pc = top->PC;
+    printf("0x%08x: %08x\n", pc, pmem[(pc >> 2) - MBASE]);
+    
+    return 0;
+}
+
 static int cmd_info(char *args);
 
 static int cmd_x(char *args);
@@ -172,6 +185,7 @@ static struct {
     {"info", cmd_info},
     {"x", cmd_x},
     {"q", cmd_q},
+    {"pc", cmd_pc},
 };
 
 void get_program_run_time(uint32_t *low, uint32_t *high) {
@@ -299,7 +313,7 @@ static int cmd_x(char *args) {
         }
 
         uint32_t data = pmem[(cur - MBASE)];
-        printf("%08x: %08x\n", addr, data);
+        printf("0x%08x: %08x\n", addr, data);
         addr += 4;
     }
 
@@ -351,9 +365,13 @@ const char *elf_file = (argc > 2) ? argv[2] : nullptr;
     size_t n = fread(pmem, 1, MAX_SIZE * sizeof(uint32_t), fp);
     fclose(fp);
    
+    /*====================== 初始化difftest =====================*/
+#ifdef CONFIG_DIFFTEST
     CPU_state npc_cpu;
     get_npc_cpu(&npc_cpu);
+    npc_cpu.pc = 0x80000000; // 设置初始PC为0x80000000
     init_difftest("../nemu/build/riscv32-nemu-interpreter-so", pmem, n, &npc_cpu);
+#endif
 
     /*====================== 初始化信号并稳定电路 =====================*/
     top->rst = 1;
@@ -381,13 +399,13 @@ const char *elf_file = (argc > 2) ? argv[2] : nullptr;
             }
 
             int i;
-            for (i = 0; i < 5; i ++) {
+            for (i = 0; i < 6; i ++) {
                 if (strcmp(cmd, cmd_table[i].name) == 0) {
                     if (cmd_table[i].handler(args) < 0) { printf("Wrong\n"); return 0; }
                     break;
                 }
             }
-            if (i == 5)  printf("Unknown command '%s'\n", cmd);
+            if (i == 6)  printf("Unknown command '%s'\n", cmd);
         }
     }
 
