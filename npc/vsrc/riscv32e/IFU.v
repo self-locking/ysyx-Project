@@ -6,7 +6,7 @@ module IFU (
     input wire rst,
     input wire jump,
     input wire [31:0] jump_pc,
-    output wire [31:0] pc_o,
+    output wire [31:0] PC,
     output wire [31:0] inst
 );
 
@@ -22,7 +22,7 @@ always @(posedge clk) begin
     end
 end
 
-assign pc_o = pc;
+assign PC = pc;
 assign inst = pmem_read(pc >> 2, 0);
 
 endmodule

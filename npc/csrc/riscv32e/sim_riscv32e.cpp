@@ -3,11 +3,11 @@
 #include <readline/readline.h>
 #include <sys/time.h> // 获取系统时间
 #include <verilated.h>
-#include "Vminirv.h"
+#include "Vriscv32e.h"
 #include "verilated_fst_c.h"
 #include "svdpi.h"
-#include "Vminirv__Dpi.h"
-#include "Vminirv___024root.h" // 用于访问寄存器和PC的值
+#include "Vriscv32e__Dpi.h"
+#include "Vriscv32e___024root.h" // 用于访问寄存器和PC的值
 #include "ftrace.h"
 #include "difftest.h"
 
@@ -57,7 +57,7 @@ void free_disasm() {
 
 #endif
 
-// #define WAVE_GEN
+#define WAVE_GEN
 
 #define MAX_SIZE 0x2000000
 #define MBASE 0x20000000
@@ -71,7 +71,7 @@ static int is_running = 1;
 static int cpu_running = 1;
 static uint32_t pmem[MAX_SIZE];
 
-static Vminirv* top = new Vminirv;
+static Vriscv32e* top = new Vriscv32e;
 
 #ifdef WAVE_GEN
 static VerilatedContext *contextp = nullptr;
@@ -90,7 +90,7 @@ void step_and_dump() {
 // 获取 npc 的状态
 void get_npc_cpu(CPU_state *cpu) {
     for (int i = 0; i < 16; i++) {
-        cpu->gpr[i] = top->rootp->minirv__DOT__gpr7__DOT__rf[i];
+        cpu->gpr[i] = top->rootp->riscv32e__DOT__gpr7__DOT__rf[i];
     }
     for (int i = 16; i < 32; i++) cpu->gpr[i] = 0;
 
@@ -218,10 +218,6 @@ extern "C" int pmem_read(int raddr, int s) {
     static uint32_t high = 0;
     uint32_t u_raddr = (uint32_t) raddr;
 
-#ifdef CONFIG_MTRACE
-    if (s) printf("0x%08x:[Read: 0x%08x]\n", top->PC, u_raddr);
-#endif
-
     if ((u_raddr << 2) == RTC_ADDR_HIGH) {
         get_program_run_time(&low, &high);
         return high;
@@ -233,34 +229,45 @@ extern "C" int pmem_read(int raddr, int s) {
         return 0;
     }
 
+#ifdef CONFIG_MTRACE
+    if (s) printf("0x%08x: Read: [0x%08x] %08x\n", top->PC, u_raddr, pmem[u_raddr - MBASE]);
+#endif
+
     return pmem[u_raddr - MBASE];
 }
 
 extern "C" void pmem_write(int waddr, int wdata, int mask) {
-    uint8_t data = uint8_t(wdata & 0xFF);
+    uint8_t ch = uint8_t(wdata & 0xFF);
     uint32_t paddr = waddr - MBASE;
+    uint32_t data = pmem[paddr];
 
 #ifdef CONFIG_MTRACE
     printf("0x%08x: Write:%08x-->[0x%08x], mask=%d]\n", top->PC, wdata, waddr, mask);
 #endif
 
-    if ((waddr << 2) == SERIAL_PORT) {putchar(data); return;};
+    if ((waddr << 2) == SERIAL_PORT) {putchar(ch); return;};
     switch (mask)
     {
-    case 0:
-        pmem[paddr] = wdata;
-        break;
     case 1:
-        pmem[paddr] = (pmem[paddr] & ~0x000000FF) | data;
+        pmem[paddr] = (data & ~0x000000FF) | wdata;
         break;
     case 2:
-        pmem[paddr] = (pmem[paddr] & ~0x0000FF00) | (data << 8);
+        pmem[paddr] = (data & ~0x0000FF00) | (wdata << 8);
+        break;
+    case 3:
+        pmem[paddr] = (data & ~0x0000FFFF) | wdata;
         break;
     case 4:
-        pmem[paddr] = (pmem[paddr] & ~0x00FF0000) |(data << 16);
+        pmem[paddr] = (data & ~0x00FF0000) |(wdata << 16);
         break;
     case 8:
-        pmem[paddr] = (pmem[paddr] & ~0xFF000000) | (data << 24);
+        pmem[paddr] = (data & ~0xFF000000) | (wdata << 24);
+        break;
+    case 10:
+        pmem[paddr] = (data & ~0xFFFF0000) | (wdata << 16);
+        break;
+    case 15:
+        pmem[paddr] = wdata;
         break;
     default:
         break;
@@ -271,9 +278,9 @@ extern "C" void pmem_write(int waddr, int wdata, int mask) {
 extern "C" void halt (int a) {
     cpu_running = 0;
     if (a) {
-        printf("\n\33[1;31mHIT BAD TRAP\33[0m\n");
+        printf("\nnpc: \033[1;31mHIT BAD TRAP\033[0m\n");
     }
-    else printf("\n\33[1;32mHIT GOOD TRAP\33[0m\n");
+    else printf("\nnpc: \33[1;32mHIT GOOD TRAP\33[0m\n");
     return;
 }
 
@@ -283,7 +290,7 @@ static int cmd_info(char *args) {
     }
     else if (strcmp(args, "r") == 0) {
         for(int i = 0; i < 16; i++) {
-            printf("x%02d = 0x%x\n", i, top->rootp->minirv__DOT__gpr7__DOT__rf[i]);
+            printf("x%02d = 0x%x\n", i, top->rootp->riscv32e__DOT__gpr7__DOT__rf[i]);
         }
     }
     return 0;
@@ -341,7 +348,7 @@ const char *elf_file = (argc > 2) ? argv[2] : nullptr;
 #ifdef WAVE_GEN
     contextp = new VerilatedContext;        // contextp用来保存仿真的时间
     contextp->commandArgs(argc, argv);      // 传递参数给verilator
-    top = new Vminirv{contextp};
+    top = new Vriscv32e{contextp};
 
     tfp = new VerilatedFstC;                // 创建一个波形文件指针
     contextp->traceEverOn(true);            // 启用跟踪

@@ -6,7 +6,6 @@ module ADD(
     output wire [31:0] out,
     output wire        lt,
     output wire        equ
-    // output wire        ge
 );
 
     wire    [31:0]  complement;
@@ -15,7 +14,6 @@ module ADD(
     assign out = a + complement + is_sub;
 
     assign lt = is_unsigned ? (a < b) : ($signed(a) < $signed(b));
-
     assign equ = a == b;
-    // assign ge  = ~lt;
+    
 endmodule

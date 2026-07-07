@@ -1,18 +1,18 @@
 # 配置
-TOP_MODULE      := minirv                       # Verilog 顶层模块名
-SIM_CPPS        += csrc/minirv/sim_minirv.cpp   # C++ 仿真入口
-V_SOURCES       := vsrc/minirv/*.v              # .v文件入口
+TOP_MODULE      := riscv32e                         # Verilog 顶层模块名
+SIM_CPPS        += csrc/riscv32e/sim_riscv32e.cpp   # C++ 仿真入口
+V_SOURCES       := vsrc/riscv32e/*.v                # .v文件入口
 OBJ_DIR         := obj_dir
 SIM_BIN         := $(OBJ_DIR)/V$(TOP_MODULE)    # 编译后的可执行文件目录
 WAVE_DIR        := wave_logs
-WAVE_FILE       := $(WAVE_DIR)/minirv_wave.fst  # 波形文件路径
+WAVE_FILE       := $(WAVE_DIR)/riscv32e_wave.fst  # 波形文件路径
 IMG             ?=                               # 二进制文件 (.bin)
 
 # ==========================================================
-CONFIG_ITRACE 	?= y
+CONFIG_ITRACE 	?= n
 CONFIG_MTRACE 	?= n
 CONFIG_FTRACE 	?= n
-CONFIG_DIFFTEST ?= y
+CONFIG_DIFFTEST ?= n
 # ==========================================================
 
 # 如果传入了 IMG (xxx.bin)，通过 patsubst 将其后缀替换为 .elf 
@@ -39,7 +39,7 @@ SIM_LDFLAGS := -lreadline
 ifeq ($(CONFIG_DIFFTEST), y)
 	SIM_CFLAGS += -DCONFIG_DIFFTEST
 	SIM_LDFLAGS += -ldl
-	SIM_CPPS += csrc/minirv/difftest.cpp
+	SIM_CPPS += csrc/riscv32e/difftest.cpp
 endif
 
 # 根据选择追加参数
@@ -61,7 +61,7 @@ endif
 ifeq ($(CONFIG_FTRACE), y)
     VERILATOR_USER_FLAGS += -DFTRACE=1
     SIM_CFLAGS += -DCONFIG_FTRACE
-    SIM_CPPS += csrc/minirv/ftrace.cpp
+    SIM_CPPS += csrc/riscv32e/ftrace.cpp
 endif
 
 

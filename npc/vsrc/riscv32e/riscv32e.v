@@ -1,6 +1,6 @@
 import "DPI-C" function int pmem_read(input int raddr, input int s);
 import "DPI-C" function void pmem_write(input int waddr, input int wdata, input int mask);
-module minirv (
+module riscv32e (
     input wire clk,
     input wire rst,
     output wire [31:0] PC
@@ -8,7 +8,6 @@ module minirv (
 
 /*============ IFU ==============*/
 wire [31:0] pc;
-wire [31:0] snpc;
 wire [31:0] inst;
 wire jump;
 wire [31:0] jump_pc;
@@ -18,7 +17,7 @@ wire [31:0] data1;
 wire [31:0] data2;
 wire [31:0] data3;
 wire [31:0] data4;
-wire [9:0] exu_op; // can add more bits
+wire [17:0] exu_op; // can add more bits
 wire [4:0] rd_addr;
 
 /*============ EXU ==============*/
@@ -26,16 +25,14 @@ wire [31:0] exu_addr;
 wire [31:0] exu_data;
 
 /*============ LSU ==============*/
-wire [3:0] lsu_op;
+wire [7:0] lsu_op;
+wire [31:0] lsu_addr;
 wire [31:0] lsu_rdata;
-wire [31:0] lsu_wdata;
-wire inst_sb;
+wire [31:0] store_data;
 
 /*============ RAM ==============*/
 wire ram_wen;
 wire ram_ren;
-wire [31:0] raddr;
-wire [31:0] waddr;
 wire [31:0] ram_rdata;
 
 /*============ WBU ==============*/
@@ -55,7 +52,7 @@ IFU ifu1 (
     .rst        (rst        ),   
     .jump       (jump       ),
     .jump_pc    (jump_pc    ),
-    .pc_o       (pc         ),
+    .PC         (pc         ),
     .inst       (inst       )
 );
 
@@ -63,7 +60,7 @@ IDU idu2 (
     .src1       (src1       ),
     .src2       (src2       ),
     .inst       (inst       ),
-    .pc         (pc          ),
+    .pc         (pc         ),
     .rs1_addr   (rs1_addr   ),
     .rs2_addr   (rs2_addr   ),
     .rd_addr    (rd_addr    ),
@@ -94,26 +91,23 @@ EXU exu3 (
 
 LSU lsu4 (
     .lsu_op     (lsu_op     ),
-    .exu_wdata  (exu_data   ),
-    .addr_i     (exu_addr   ),
+    .exu_data   (exu_data   ),
+    .addr       (exu_addr   ),
     .rdata_i    (ram_rdata  ),
-    .addr_o1    (raddr      ),
-    .addr_o2    (waddr      ),
+    .lsu_addr   (lsu_addr    ),
     .rdata_o    (lsu_rdata  ),
     .rdata_en   (ram_ren    ),
     .wdata_en   (ram_wen    ),
-    .inst_sb    (inst_sb    ),
-    .store_data (lsu_wdata  )
+    .store_data (store_data )
 );
 
 RAM ram5 (
-    .clk        (clk        ),
-    .raddr      (raddr      ),
+    .clk        (clk       ),
+    .addr       (lsu_addr   ),
     .ren        (ram_ren    ),
-    .waddr      (waddr      ),
     .wen        (ram_wen    ),
-    .wdata      (lsu_wdata  ),
-    .inst_sb    (inst_sb    ),
+    .wdata      (store_data),
+    .store      (lsu_op[2:0]),
     .rdata      (ram_rdata  )
 );
 
@@ -121,7 +115,7 @@ WBU wbu6 (
     .lsu_data   (lsu_rdata  ),
     .exu_data   (exu_data   ),
     .wbu_op     (wbu_op     ),
-    .wbu_data   (wbu_wdata   )
+    .wbu_data   (wbu_wdata  )
 );
 
 GPR gpr7 (
