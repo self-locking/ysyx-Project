@@ -1,6 +1,8 @@
 # 配置
 TOP_MODULE      := riscv32e                         # Verilog 顶层模块名
 SIM_CPPS        += csrc/riscv32e/sim_riscv32e.cpp   # C++ 仿真入口
+SIM_CPPS        += csrc/riscv32e/pmem.cpp            # 内存相关定义
+SIM_CPPS        += csrc/riscv32e/sdb.cpp             # 调试器
 V_SOURCES       := vsrc/riscv32e/*.v                # .v文件入口
 OBJ_DIR         := obj_dir
 SIM_BIN         := $(OBJ_DIR)/V$(TOP_MODULE)    # 编译后的可执行文件目录
@@ -46,15 +48,20 @@ endif
 ifeq ($(CONFIG_ITRACE), y)
     # 传给 Verilog 的宏，用于 RTL 内部 `ifdef ITRACE 控制 DPI-C
     VERILATOR_USER_FLAGS += -DITRACE=1
-    
+
     # 传给 C++ 的宏，用于 cpp 激励文件中的#ifdef CONFIG_ITRACE
     SIM_CFLAGS += -DCONFIG_ITRACE
-    
+
     # 链接 Capstone 动态库的路径和名称
     SIM_LDFLAGS += -L$(NEMU_HOME)/tools/capstone/repo -lcapstone
+
+    # 反汇编实现，仅在开启 ITRACE 时参与编译
+    SIM_CPPS += csrc/riscv32e/itrace.cpp
 endif
 
 ifeq ($(CONFIG_MTRACE), y)
+    # mtrace.h 是 header-only 的内联实现，这个宏直接控制它内部的打印语句，
+    # 不需要额外追加 .cpp 到 SIM_CPPS
     SIM_CFLAGS += -DCONFIG_MTRACE
 endif
 
@@ -65,7 +72,7 @@ ifeq ($(CONFIG_FTRACE), y)
 endif
 
 
-# 编译规则（注意：$(SIM_TOP_CPP) 已被替换为支持多文件的 $(SIM_CPPS)）
+# 编译规则
 $(SIM_BIN): $(SIM_CPPS) $(V_SOURCES) | $(WAVE_DIR)
 	verilator --cc --exe --build -j \
 	--Mdir $(OBJ_DIR) \

@@ -1,5 +1,6 @@
 import "DPI-C" function int pmem_read(input int raddr, input int s);
 import "DPI-C" function void pmem_write(input int waddr, input int wdata, input int mask);
+import "DPI-C" function void halt(input int a);
 module riscv32e (
     input wire clk,
     input wire rst,
@@ -28,12 +29,12 @@ wire [31:0] exu_data;
 wire [7:0] lsu_op;
 wire [31:0] lsu_addr;
 wire [31:0] lsu_rdata;
+wire [31:0] lsu_data;
 wire [31:0] store_data;
 
 /*============ RAM ==============*/
 wire ram_wen;
 wire ram_ren;
-wire [31:0] ram_rdata;
 
 /*============ WBU ==============*/
 wire [1:0] wbu_op;
@@ -93,22 +94,22 @@ LSU lsu4 (
     .lsu_op     (lsu_op     ),
     .exu_data   (exu_data   ),
     .addr       (exu_addr   ),
-    .rdata_i    (ram_rdata  ),
-    .lsu_addr   (lsu_addr    ),
-    .rdata_o    (lsu_rdata  ),
+    .lsu_data   (lsu_data   ),
+    .lsu_addr   (lsu_addr   ),
+    .rdata      (lsu_rdata  ),
     .rdata_en   (ram_ren    ),
     .wdata_en   (ram_wen    ),
     .store_data (store_data )
 );
 
-RAM ram5 (
+MEM mem5 (
     .clk        (clk       ),
     .addr       (lsu_addr   ),
     .ren        (ram_ren    ),
     .wen        (ram_wen    ),
     .wdata      (store_data),
     .store      (lsu_op[2:0]),
-    .rdata      (ram_rdata  )
+    .rdata      (lsu_data   )
 );
 
 WBU wbu6 (

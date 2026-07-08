@@ -2,9 +2,9 @@ module LSU (
     input wire [7:0] lsu_op,
     input wire [31:0] exu_data,
     input wire [31:0] addr,
-    input wire [31:0] rdata_i,
+    input wire [31:0] lsu_data,
     output wire [31:0] lsu_addr,
-    output wire [31:0] rdata_o,
+    output wire [31:0] rdata,
     output wire rdata_en,
     output wire wdata_en,
     output wire [31:0] store_data
@@ -20,23 +20,23 @@ reg [1:0] lh_sel;
 always @(*) begin
     lb_sel = addr[1:0];
     case (lb_sel)
-        2'b00: lb_data = { {24{lsu_op[7] & rdata_i[7]}}, rdata_i[7:0] };
-        2'b01: lb_data = { {24{lsu_op[7] & rdata_i[15]}}, rdata_i[15:8] };
-        2'b10: lb_data = { {24{lsu_op[7] & rdata_i[23]}}, rdata_i[23:16] };
-        2'b11: lb_data = { {24{lsu_op[7] & rdata_i[31]}}, rdata_i[31:24] };
+        2'b00: lb_data = { {24{lsu_op[7] & lsu_data[7]}}, lsu_data[7:0] };
+        2'b01: lb_data = { {24{lsu_op[7] & lsu_data[15]}}, lsu_data[15:8] };
+        2'b10: lb_data = { {24{lsu_op[7] & lsu_data[23]}}, lsu_data[23:16] };
+        2'b11: lb_data = { {24{lsu_op[7] & lsu_data[31]}}, lsu_data[31:24] };
     endcase
 
     lh_sel = addr[1:0];
     case (lh_sel)
-        2'b00: lh_data = { {16{lsu_op[6] & rdata_i[15]}}, rdata_i[15:0] };
-        2'b10: lh_data = { {16{lsu_op[6] & rdata_i[31]}}, rdata_i[31:16] };
+        2'b00: lh_data = { {16{lsu_op[6] & lsu_data[15]}}, lsu_data[15:0] };
+        2'b10: lh_data = { {16{lsu_op[6] & lsu_data[31]}}, lsu_data[31:16] };
         default: lh_data = 32'h0;
     endcase
 end
 
 assign lsu_addr = addr;
 
-assign rdata_o = lsu_op[5] ? rdata_i : 
+assign rdata = lsu_op[5] ? lsu_data : 
                 ((lsu_op[7] | lsu_op[4]) ? lb_data : 
                 ((lsu_op[6] | lsu_op[3]) ? lh_data : 32'h0));
 assign rdata_en = |lsu_op[7:3];

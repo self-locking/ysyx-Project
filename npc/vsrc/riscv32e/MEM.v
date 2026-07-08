@@ -1,4 +1,4 @@
-module RAM #(ADDR_WIDTH = 32, DATA_WIDTH = 32) (
+module MEM #(ADDR_WIDTH = 32, DATA_WIDTH = 32) (
     input wire clk,
     input wire [ADDR_WIDTH-1:0] addr,
     input wire ren,

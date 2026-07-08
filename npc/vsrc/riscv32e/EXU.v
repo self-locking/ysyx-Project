@@ -1,4 +1,3 @@
-import "DPI-C" function void halt(input int a);
 module EXU (
     input wire clk,
     input wire [31:0] pc,
