@@ -13,8 +13,10 @@ LDSCRIPTS += $(AM_HOME)/scripts/linker.ld
 LDFLAGS   += --defsym=_pmem_start=0x80000000 --defsym=_entry_offset=0x0
 LDFLAGS   += --gc-sections -e _start
 NEMUFLAGS += -l $(shell dirname $(IMAGE).elf)/nemu-log.txt
+
 # 用于开启批处理
 NEMUFLAGS += -b
+
 # ftrace功能
 NEMUFLAGS += -e $(IMAGE).elf
 

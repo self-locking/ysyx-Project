@@ -17,6 +17,7 @@
 #define __RISCV_REG_H__
 
 #include <common.h>
+#include <isa.h>
 
 static inline int check_reg_idx(int idx) {
   IFDEF(CONFIG_RT_CHECK, assert(idx >= 0 && idx < MUXDEF(CONFIG_RVE, 16, 32)));
@@ -29,5 +30,24 @@ static inline const char* reg_name(int idx) {
   extern const char* regs[];
   return regs[check_reg_idx(idx)];
 }
+
+#define MEPC 0x341
+#define MSTATUS 0x300
+#define MCAUSE 0x342
+#define MTVEC 0x305
+
+static inline word_t *check_csr(int csr) {
+  switch (csr) {
+    case MEPC:      return &cpu.csr.mepc;
+    case MSTATUS:   return &cpu.csr.mstatus;
+    case MCAUSE:    return &cpu.csr.mcause;
+    case MTVEC:     return &cpu.csr.mtvec;
+    default: 
+      Assert(0, "Unknow CSR 0x%x", csr);
+      return NULL;
+  }
+}
+
+#define CSR(i) (*check_csr(i))
 
 #endif
