@@ -28,6 +28,8 @@ void inst_cycle(){
 	uint32_t func = (inst & 0x7000) >> 12;
 	uint32_t imm, addr, tmp, val;
 
+	// printf("0x%08x: %08x\n", PC, inst);
+
 	if(opcode == 0x13 && func == 0x0){
 		//addi
 
@@ -161,12 +163,13 @@ int main(){
 
 	//ROM[0x486] = 0x100073;//mem.bin
 	//ROM[0x89] = 0x100073; //sum.bin
+	ROM[0x36e] = 0x100073;
 
 	uint32_t cycle = 0;	
 	while(!halted){
 		inst_cycle();
 		cycle++;
-		if(cycle % 60000 == 0){
+		if(cycle % 600 == 0){
 			io_write(AM_GPU_FBDRAW, 72, 22, color_buf, WIDTH, HEIGHT, true);
 		}
 	}
