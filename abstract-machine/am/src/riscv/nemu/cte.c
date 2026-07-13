@@ -38,7 +38,10 @@ bool cte_init(Context*(*handler)(Event, Context*)) {
 }
 
 Context *kcontext(Area kstack, void (*entry)(void *), void *arg) {
-  return NULL;
+  Context *c = (Context*)kstack.end - 1; 
+  c->mepc = (uintptr_t)entry; // 转为地址数值
+  c->gpr[10] = (uintptr_t)arg; // a0寄存器保存参数指针
+  return c;
 }
 
 void yield() {
