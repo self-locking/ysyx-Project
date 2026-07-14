@@ -7,142 +7,142 @@
 #define MAX_LENGTH 1024
 
 int handle_fmt(char *buf, const char *fmt, va_list ap) {
-  char c;
-  int count = 0;
+    char c;
+    int count = 0;
 
-  /* 双括号告诉编译器是赋值不是比较 */
-  while ((c = *fmt++)) {
-    if (count == MAX_LENGTH - 1) panic("Out of string buff");
-    switch(c) {
-      case '%': {
-        c = *fmt++;
-        int width = 0;
-        char pad_char = ' ';
-        int base = 10;
+    while ((c = *fmt++)) {
+        if (count == MAX_LENGTH - 1) panic("Out of string buff");
+        switch (c) {
+            case '%': {
+                c = *fmt++;
+                int width = 0;        // 宽度
+                char pad_char = ' ';  // 填充
+                int base = 10;
+                int is_long = 0;      // 是否是long
 
-        if (c == '0') {
-        pad_char = '0';
-        c = *fmt++;
+                if (c == '0') {
+                    pad_char = '0';
+                    c = *fmt++;
+                }
+
+                while (c >= '0' && c <= '9') {
+                    width = width * 10 + c - '0';
+                    c = *fmt++;
+                }
+
+                if (c == 'l') {
+                    is_long = 1;
+                    c = *fmt++;
+                }
+
+                switch (c) {
+                    case 'x':
+                    case 'X':
+                        base = 16;
+                    case 'd': {
+                        unsigned long u;
+                        int neg = 0;   // 是否为负
+
+                        if (base == 10) {
+                            // 统一使用 long 接收，int 会被提升
+                            long d = is_long ? va_arg(ap, long) : va_arg(ap, int);
+                            if (d < 0) {
+                                neg = 1;
+                                u = -(unsigned long)d;
+                            } else {
+                                u = d;
+                            }
+                        } else if (base == 16) {
+                            u = is_long ? va_arg(ap, unsigned long)
+                                         : va_arg(ap, unsigned int);
+                        }
+
+                        char numbuf[32];
+                        int len = 0;
+
+                        if (u == 0) {
+                            numbuf[len++] = '0';
+                        }
+
+                        while (u > 0) {
+                            int digit = u % base;
+                            if (digit < 10) {
+                                numbuf[len++] = '0' + digit;
+                            } else {
+                                numbuf[len++] = (c == 'x') ? 'a' + digit - 10
+                                                           : 'A' + digit - 10;
+                            }
+                            u /= base;
+                        }
+
+                        int total_len = len + neg;
+
+                        // 0 填充时先输出负号
+                        if (neg && pad_char == '0') {
+                            *buf++ = '-';
+                            count++;
+                            neg = 0;
+                        }
+
+                        while (total_len < width) {
+                            *buf++ = pad_char;
+                            count++;
+                            total_len++;
+                        }
+
+                        // 普通情况输出负号
+                        if (neg) {
+                            *buf++ = '-';
+                            count++;
+                        }
+
+                        for (int i = len - 1; i >= 0; i--) {
+                            *buf++ = numbuf[i];
+                            count++;
+                        }
+                        break;
+                    }
+
+                    case 'c': {
+                        char ch = va_arg(ap, int);
+                        *buf++ = ch;
+                        count++;
+                        break;
+                    }
+
+                    case 's': {
+                        char *p = va_arg(ap, char *);
+                        while (*p) {
+                            *buf++ = *p++;
+                            count++;
+                        }
+                        break;
+                    }
+
+                    case '%': {
+                        *buf++ = '%';
+                        count++;
+                        break;
+                    }
+
+                    default: {
+                        *buf = '\0';
+                        putstr("May Bad\n");
+                        return -1;
+                    }
+                }
+                break;
+            }
+
+            default: {
+                *buf++ = c;
+                count++;
+                break;
+            }
         }
-
-        while (c >= '0' && c <= '9') {
-          width = width * 10 + c - '0';
-          c = *fmt++;
-        }
-
-        switch(c) {
-          case 'x':
-          case 'X':
-            base = 16;
-
-          case 'd': {
-            unsigned int u;
-            int neg = 0;
-
-            if (base == 10) {
-              int d = va_arg(ap, int);
-              if (d < 0) {
-                neg = 1;
-                u = -d;
-              } 
-              else u = d;
-            } 
-            else if (base == 16) u = va_arg(ap, unsigned int);
-
-            // 方便填充采用倒序和临时数组
-            char numbuf[32];
-            int len = 0;
-
-            if (u == 0) {
-                numbuf[len++] = '0';
-            }
-
-            while (u > 0) {
-              int digit = u % base;
-
-              if (digit < 10) {
-                  numbuf[len++] = '0' + digit;
-              } 
-              else {
-                if (c == 'x') {
-                    numbuf[len++] = 'a' + digit - 10;
-                } 
-                else numbuf[len++] = 'A' + digit - 10;
-              }
-              u /= base;
-            }
-
-            int total_len = len + neg;
-
-            // 如果是0填充，先输出负号
-            if (neg && pad_char == '0') {
-                *buf++ = '-';
-                count++;
-                neg = 0;
-            }
-
-            while (total_len < width) {
-                *buf++ = pad_char;
-                count++;
-                total_len++;
-            }
-
-            // 普通情况输出负号
-            if (neg) {
-                *buf++ = '-';
-                count++;
-            }
-
-            for (int i = len - 1; i >= 0; i--) {
-                *buf++ = numbuf[i];
-                count++;
-            }
-
-            break;
-          }
-          
-          case 'c': {
-            /* va_arg(ap, type) 将参数以...类型提取并指向下一个参数 */
-            char ch = va_arg(ap, int); // char被提升为int
-            *buf++ = ch;
-            count++;
-            break;
-          }
-
-          case 's': {
-            char *p = va_arg(ap, char *);
-            while (*p) {
-              *buf++ = *p++;
-              count++;
-            }
-            break;
-          }
-
-          case '%': {
-            *buf++ = '%';
-            count++;
-            break;
-          }
-
-          default: {
-            *buf = '\0';
-            putstr("May Bad\n");
-            return -1; // 未实现或错误类型
-          }
-        }
-        break;
-      }
-
-      default: {
-        *buf++ = c;
-        count++;
-        break;
-      }
     }
-  }
-  *buf = '\0';
-
-  return count;
+    *buf = '\0';
+    return count;
 }
 
 int printf(const char *fmt, ...) {
