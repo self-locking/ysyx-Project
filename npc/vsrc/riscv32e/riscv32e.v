@@ -18,7 +18,7 @@ wire [31:0] data1;
 wire [31:0] data2;
 wire [31:0] data3;
 wire [31:0] data4;
-wire [17:0] exu_op; // can add more bits
+wire [21:0] exu_op; // can add more bits
 wire [4:0] rd_addr;
 
 /*============ EXU ==============*/
@@ -47,6 +47,10 @@ wire [4:0] rs2_addr;
 wire [31:0] src1;
 wire [31:0] src2;
 wire [31:0] a0;
+
+/*============ CSR ==============*/
+wire [31:0] csr_rdata;
+wire [31:0] csr_wdata;
 
 IFU ifu1 (
     .clk        (clk        ),
@@ -84,10 +88,12 @@ EXU exu3 (
     .data3      (data3      ),
     .data4      (data4      ),
     .a0         (a0         ),
+    .csr_rdata  (csr_rdata  ),
     .jump       (jump       ),
     .jump_pc    (jump_pc    ),
     .exu_addr   (exu_addr   ),
-    .exu_data   (exu_data   )
+    .exu_data   (exu_data   ),
+    .csr_wdata  (csr_wdata  )
 );
 
 LSU lsu4 (
@@ -130,6 +136,17 @@ GPR gpr7 (
     .src1       (src1       ),
     .src2       (src2       ),
     .a0         (a0         )
+);
+
+CSR csr8 (
+    .clk        (clk        ),
+    .rst        (rst        ),
+    .pc         (pc         ),
+    .addr       (data2      ),
+    .data       (csr_wdata  ),
+    .wen        (exu_op[18] | (exu_op[19] & (|rs1_addr)) ),
+    .csr_op     (exu_op[21:20]),
+    .csr        (csr_rdata  )
 );
 
 `ifdef FTRACE

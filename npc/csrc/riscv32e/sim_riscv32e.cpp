@@ -23,7 +23,7 @@
 #include "difftest.h"
 #endif
 
-#define WAVE_GEN
+// #define WAVE_GEN
 #define BATCH_MODE
 
 int is_running = 1;

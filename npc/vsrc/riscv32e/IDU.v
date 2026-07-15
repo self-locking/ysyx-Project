@@ -7,7 +7,7 @@ module IDU (
     output wire [4:0] rs2_addr,
     output wire [4:0] rd_addr,
     output wire wen,
-    output wire [17:0] exu_op, // can add more bits
+    output wire [21:0] exu_op, // can add more bits
     output wire [31:0] data1,
     output wire [31:0] data2,
     output wire [31:0] data3,
@@ -61,6 +61,10 @@ wire inst_bge;
 wire inst_bltu;
 wire inst_bgeu;
 wire inst_ebreak;
+wire inst_csrrw;
+wire inst_csrrs;
+wire inst_ecall;
+wire inst_mret;
 
 /* ========= ready =========== */
 assign opcode = inst[6:0];
@@ -68,7 +72,7 @@ assign func3  = inst[14:12];
 assign func7  = inst[31:25];
 
 assign r_type = (opcode == 7'h33);
-assign i_type = (opcode == 7'h13) | (opcode == 7'h3) | (opcode == 7'h67);
+assign i_type = (opcode == 7'h13) | (opcode == 7'h3) | (opcode == 7'h67) | (opcode == 7'h73);
 assign s_type = (opcode == 7'h23);
 assign u_type = (opcode == 7'h37) | (opcode == 7'h17);
 assign j_type = (opcode == 7'h6F);
@@ -128,7 +132,12 @@ assign inst_bge     = b_type & (func3 == 3'h5);
 assign inst_bltu    = b_type & (func3 == 3'h6);
 assign inst_bgeu    = b_type & (func3 == 3'h7);
 
-assign inst_ebreak  = (inst == 32'h100073); // no signal to i_type
+assign inst_csrrw   = i_type & (func3 == 3'h1);
+assign inst_csrrs   = i_type & (func3 == 3'h2);
+
+assign inst_ebreak  = (inst == 32'h100073);
+assign inst_ecall   = (inst == 32'h73);
+assign inst_mret  = (inst == 32'h30200073);
 
 /* ========= ouput =========== */
 assign rs1_addr = inst[19:15]; 
@@ -166,6 +175,12 @@ assign exu_op[15] = inst_sll_slli;
 assign exu_op[16] = inst_and_andi;
 // srl, srli
 assign exu_op[17] = inst_srl_srli;
+// csrrw, csrrs
+assign exu_op[19:18] = {inst_csrrs, inst_csrrw};
+// ecall
+assign exu_op[20] = inst_ecall;
+// mret
+assign exu_op[21] = inst_mret;
 
 assign data1 = (r_type | i_type | s_type | b_type) ? src1 : (j_type ? pc : pc + 4);
 assign data2 = (r_type | s_type | b_type) ? src2 : ((i_type | j_type) ? imm : 0);
