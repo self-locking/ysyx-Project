@@ -10,11 +10,11 @@ Context* __am_irq_handle(Context *c) {
     switch (c->mcause) {
       case 11: 
         if (c->gpr[17] == -1) {
-          // %a7 == -1
+          // $a7 == -1
           ev.event = EVENT_YIELD;
           c->mepc += 4;
+          break;
         }
-        break;
       default: ev.event = EVENT_ERROR; break;
     }
 
@@ -39,8 +39,9 @@ bool cte_init(Context*(*handler)(Event, Context*)) {
 
 Context *kcontext(Area kstack, void (*entry)(void *), void *arg) {
   Context *c = (Context*)kstack.end - 1; 
-  c->mepc = (uintptr_t)entry; // 转为地址数值
-  c->gpr[10] = (uintptr_t)arg; // a0寄存器保存参数指针
+  c->mepc = (uintptr_t)entry;   // 转为地址数值
+  c->mstatus = 0x1800;          //  difftest使用
+  c->gpr[10] = (uintptr_t)arg;  // a0寄存器保存参数指针
   return c;
 }
 

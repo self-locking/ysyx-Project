@@ -99,7 +99,7 @@ int main(int argc, char **argv) {
     tfp = new VerilatedFstC;                // 创建一个波形文件指针
     contextp->traceEverOn(true);            // 启用跟踪
     top->trace(tfp, 99);                    // 采样深度为99(是否采集子模块等)
-    tfp->open("wave_logs/minirv_wave.fst"); // 写入波形文件，文件地址和文件名可以自定义
+    tfp->open("wave_logs/riscv32e_wave.fst"); // 写入波形文件，文件地址和文件名可以自定义
 #endif
 
     /*====================== 写入数据 =====================*/

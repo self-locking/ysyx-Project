@@ -19,6 +19,7 @@
 #include <readline/readline.h>
 #include <readline/history.h>
 #include "sdb.h"
+#include "../../isa/riscv32/local-include/reg.h"
 #include <memory/vaddr.h>
 #include <monitor/watchpoint.h>
 #include <stdlib.h>
@@ -148,7 +149,13 @@ static int cmd_info(char *args) {
 			cur = cur->next;
 		}
 	}
-	else {
+	else if (strcmp(args, "c") == 0) {
+    printf("mepc:     0x%08x\n", CSR(MEPC));
+    printf("mstatus:  0x%08x\n", CSR(MSTATUS));
+    printf("mcause:   0x%08x\n", CSR(MCAUSE));
+    printf("mtvec:    0x%08x\n", CSR(MTVEC));
+  }
+  else {
 		printf("Unknown subcmd\n");
 	}
 	return 0;
