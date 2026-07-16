@@ -52,7 +52,7 @@ void checkregs(CPU_state *ref, CPU_state *dut) {
     if (ref->pc == dut->pc) {
         for (int i = 0; i < 16; i++) { // 目前只有16个reg
             if (ref->gpr[i] != dut->gpr[i]) {
-                printf("x%d is different: ref: 0x%08x, dut: 0x%08x\n", i, ref->gpr[i], dut->gpr[i]);
+                printf("PC = 0x%08x, x%d is different: ref: 0x%08x, dut: 0x%08x\n", ref->pc, i, ref->gpr[i], dut->gpr[i]);
                 assert(0);
             }
         }

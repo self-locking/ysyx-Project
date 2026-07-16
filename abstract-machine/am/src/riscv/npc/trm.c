@@ -1,5 +1,6 @@
 #include <am.h>
 #include <klib-macros.h>
+#include <stdio.h>
 
 extern char _heap_start;
 int main(const char *args);
@@ -24,6 +25,19 @@ void halt(int code) {
 }
 
 void _trm_init() {
+  uint32_t ysyx;
+  uint32_t id;
+
+  asm volatile("csrr %0, mvendorid" : "=r"(ysyx));
+  asm volatile("csrr %0, marchid" : "=r"(id));
+
+  printf("ID = %c%c%c%c_%d\n",
+      (ysyx >> 24) & 0xff,
+      (ysyx >> 16) & 0xff,
+      (ysyx >> 8)  & 0xff,
+      ysyx & 0xff,
+      id);
+  
   int ret = main(mainargs);
   halt(ret);
 }

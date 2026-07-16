@@ -13,7 +13,8 @@ module IDU (
     output wire [31:0] data3,
     output wire [31:0] data4,
     output wire [7:0] lsu_op,
-    output wire [1:0] wbu_op
+    output wire [1:0] wbu_op,
+    output wire [31:0] csr_addr
 );
 
 wire [6:0] opcode;
@@ -88,6 +89,7 @@ assign imm =    ({32{i_type}} & i_imm) |
                 ({32{u_type}} & u_imm) | 
                 ({32{j_type}} & j_imm) |
                 ({32{b_type}} & b_imm);
+assign csr_addr = { {20{1'b0}}, inst[31:20] };
 
 assign inst_add_addi    =   ~inst_jalr &
                             ( (i_type & (func3 == 3'h0)) | 

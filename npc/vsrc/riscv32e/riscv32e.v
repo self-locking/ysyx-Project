@@ -49,6 +49,7 @@ wire [31:0] src2;
 wire [31:0] a0;
 
 /*============ CSR ==============*/
+wire [31:0] csr_addr;
 wire [31:0] csr_rdata;
 wire [31:0] csr_wdata;
 
@@ -76,7 +77,8 @@ IDU idu2 (
     .data3      (data3      ),
     .data4      (data4      ),
     .lsu_op     (lsu_op     ),
-    .wbu_op     (wbu_op     )
+    .wbu_op     (wbu_op     ),
+    .csr_addr   (csr_addr   )
 );
 
 EXU exu3 (
@@ -142,7 +144,7 @@ CSR csr8 (
     .clk        (clk        ),
     .rst        (rst        ),
     .pc         (pc         ),
-    .addr       (data2      ),
+    .addr       (csr_addr   ),
     .data       (csr_wdata  ),
     .wen        (exu_op[18] | (exu_op[19] & (|rs1_addr)) ),
     .csr_op     (exu_op[21:20]),
