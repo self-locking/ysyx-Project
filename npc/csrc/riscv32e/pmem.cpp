@@ -56,7 +56,7 @@ extern "C" void pmem_write(int waddr, int wdata, int mask) {
     uint8_t ch = uint8_t(wdata & 0xFF);
     uint32_t u_waddr = (uint32_t) waddr;
  
-    if ((u_waddr << 2) == SERIAL_PORT) { putchar(ch); return; }
+    if ((u_waddr << 2) == SERIAL_PORT) { putc(ch, stderr); return; }
  
     if (u_waddr < MBASE || u_waddr - MBASE >= MAX_SIZE) {
         printf("0x%08x: pmem_write out of bound! waddr=0x%08x wdata=0x%08x mask=%d\n",
